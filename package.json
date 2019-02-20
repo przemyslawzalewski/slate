@@ -1,6 +1,9 @@
 {
-  "private": true,
-  "name": "slate-packages",
+  "name": "slate",
+  "description": "A completely customizable framework for building rich text editors.",
+  "version": "0.41.0",
+  "license": "MIT",
+  "repository": "git://github.com/ianstormtaylor/slate.git",
   "workspaces": [
     "packages/*"
   ],
