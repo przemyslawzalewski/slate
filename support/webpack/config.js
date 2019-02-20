@@ -3,7 +3,6 @@ const webpack = require('webpack')
 const HtmlWebpackPlugin = require('html-webpack-plugin')
 const HtmlWebpackTemplate = require('html-webpack-template')
 const ExtractTextPlugin = require('extract-text-webpack-plugin')
-const CopyWebpackPlugin = require('copy-webpack-plugin')
 const UglifyJSPlugin = require('uglifyjs-webpack-plugin')
 
 const DefinePlugin = webpack.DefinePlugin
@@ -13,7 +12,7 @@ const IS_PROD = process.env.NODE_ENV === 'production'
 const IS_DEV = !IS_PROD
 
 const config = {
-  entry: ['react-hot-loader/patch', './examples/index.js'],
+  entry: ['react-hot-loader/patch'],
   output: {
     path: path.resolve(__dirname, '../../build'),
     filename: '[name]-[hash].js',
@@ -74,7 +73,6 @@ const config = {
         'https://fonts.googleapis.com/icon?family=Material+Icons',
       ],
     }),
-    IS_PROD && new CopyWebpackPlugin(['examples/CNAME']),
     IS_PROD && new UglifyJSPlugin({ sourceMap: true }),
     IS_DEV && new NamedModulesPlugin(),
     IS_DEV && new HotModuleReplacementPlugin(),

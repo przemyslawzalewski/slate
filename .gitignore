@@ -1,8 +1,6 @@
 # Build files.
 *.js.map
 build/
-dist/
-lib/
 
 # Temporary files.
 tmp/
@@ -18,6 +16,7 @@ yarn-error.log
 packages/*/yarn.lock
 coverage/
 .nyc_output/
+package-lock.json
 
 # OS files.
 .DS_Store
