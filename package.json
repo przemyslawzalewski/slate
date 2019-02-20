@@ -88,12 +88,6 @@
     "webpack": "^3.11.0",
     "webpack-dev-server": "^2.11.1"
   },
-  "peerDependencies": {
-    "slate": "*",
-    "slate-html-serializer": "*",
-    "slate-plain-serializer": "*",
-    "slate-react": "*"
-  },
   "scripts": {
     "benchmark": "cross-env COMPARE=compare node --expose-gc ./tmp/benchmark/index.js",
     "benchmark:save": " yarn benchmark:prepare && node --expose-gc ./tmp/benchmark/index.js",
