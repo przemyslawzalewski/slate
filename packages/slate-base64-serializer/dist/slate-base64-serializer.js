@@ -1,8 +1,11 @@
 (function (global, factory) {
-	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('slate'), require('isomorphic-base64')) :
-	typeof define === 'function' && define.amd ? define(['exports', 'slate', 'isomorphic-base64'], factory) :
-	(factory((global.SlateBase64Serializer = {}),global.Slate,global.isomorphicBase64));
-}(this, (function (exports,slate,isomorphicBase64) { 'use strict';
+	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('slate')) :
+	typeof define === 'function' && define.amd ? define(['exports', 'slate'], factory) :
+	(factory((global.SlateBase64Serializer = {}),global.Slate));
+}(this, (function (exports,slate) { 'use strict';
+
+var atob = self.atob.bind(self);
+var btoa = self.btoa.bind(self);
 
 /**
  * Encode a JSON `object` as base-64 `string`.
@@ -13,7 +16,7 @@
 
 function encode(object) {
   var string = JSON.stringify(object);
-  var encoded = isomorphicBase64.btoa(encodeURIComponent(string));
+  var encoded = btoa(encodeURIComponent(string));
   return encoded;
 }
 
@@ -25,7 +28,7 @@ function encode(object) {
  */
 
 function decode(string) {
-  var decoded = decodeURIComponent(isomorphicBase64.atob(string));
+  var decoded = decodeURIComponent(atob(string));
   var object = JSON.parse(decoded);
   return object;
 }

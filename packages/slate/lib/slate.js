@@ -7,7 +7,6 @@ function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'defau
 var isPlainObject = _interopDefault(require('is-plain-object'));
 var immutable = require('immutable');
 var warning = _interopDefault(require('slate-dev-warning'));
-var esrever = require('esrever');
 var omit = _interopDefault(require('lodash/omit'));
 var pick = _interopDefault(require('lodash/pick'));
 var Debug = _interopDefault(require('debug'));
@@ -3046,6 +3045,32 @@ Changes.wrapText = function (change, prefix) {
   }
 };
 
+var regexSymbolWithCombiningMarks = /(<%= allExceptCombiningMarks %>)(<%= combiningMarks %>+)/g;
+var regexSurrogatePair = /([\uD800-\uDBFF])([\uDC00-\uDFFF])/g;
+
+var reverse = function reverse(string) {
+  // Step 1: deal with combining marks and astral symbols (surrogate pairs)
+  string = string
+  // Swap symbols with their combining marks so the combining marks go first
+  .replace(regexSymbolWithCombiningMarks, function ($_, $1, $2) {
+    // Reverse the combining marks so they will end up in the same order
+    // later on (after another round of reversing)
+    return reverse($2) + $1;
+  })
+  // Swap high and low surrogates so the low surrogates go first
+  .replace(regexSurrogatePair, '$2$1');
+
+  // Step 2: reverse the code units in the string
+  var result = [];
+  var index = string.length;
+
+  while (index--) {
+    result.push(string.charAt(index));
+  }
+
+  return result.join('');
+};
+
 /**
  * Surrogate pair start and end points.
  *
@@ -3148,7 +3173,7 @@ function getCharOffset(text) {
 
 function getCharOffsetBackward(text, offset) {
   text = text.slice(0, offset);
-  text = esrever.reverse(text);
+  text = reverse(text);
   return getCharOffset(text);
 }
 
@@ -3208,7 +3233,7 @@ function getWordOffset(text) {
 
 function getWordOffsetBackward(text, offset) {
   text = text.slice(0, offset);
-  text = esrever.reverse(text);
+  text = reverse(text);
   var o = getWordOffset(text);
   return o;
 }

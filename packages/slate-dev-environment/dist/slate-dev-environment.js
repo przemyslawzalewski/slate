@@ -1,10 +1,12 @@
 (function (global, factory) {
-	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('is-in-browser')) :
-	typeof define === 'function' && define.amd ? define(['exports', 'is-in-browser'], factory) :
-	(factory((global.SlateDevEnvironment = {}),global.isBrowser));
-}(this, (function (exports,isBrowser) { 'use strict';
+	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
+	typeof define === 'function' && define.amd ? define(['exports'], factory) :
+	(factory((global.SlateDevEnvironment = {})));
+}(this, (function (exports) { 'use strict';
 
-isBrowser = isBrowser && isBrowser.hasOwnProperty('default') ? isBrowser['default'] : isBrowser;
+var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
+
+var isBrowser = (typeof window === "undefined" ? "undefined" : _typeof(window)) === "object" && (typeof document === "undefined" ? "undefined" : _typeof(document)) === 'object' && document.nodeType === 9;
 
 var slicedToArray = function () {
   function sliceIterator(arr, i) {

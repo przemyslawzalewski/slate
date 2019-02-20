@@ -1,11 +1,40 @@
 (function (global, factory) {
-	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('react'), require('react-dom/server'), require('type-of'), require('slate'), require('immutable')) :
-	typeof define === 'function' && define.amd ? define(['exports', 'react', 'react-dom/server', 'type-of', 'slate', 'immutable'], factory) :
-	(factory((global.SlateHtmlSerializer = {}),global.React,global.ReactDOMServer,global.typeOf,global.Slate,global.Immutable));
-}(this, (function (exports,React,server,typeOf,slate,immutable) { 'use strict';
+	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('react'), require('react-dom/server'), require('slate'), require('immutable')) :
+	typeof define === 'function' && define.amd ? define(['exports', 'react', 'react-dom/server', 'slate', 'immutable'], factory) :
+	(factory((global.SlateHtmlSerializer = {}),global.React,global.ReactDOMServer,global.Slate,global.Immutable));
+}(this, (function (exports,React,server,slate,immutable) { 'use strict';
 
 React = React && React.hasOwnProperty('default') ? React['default'] : React;
-typeOf = typeOf && typeOf.hasOwnProperty('default') ? typeOf['default'] : typeOf;
+
+var toString = Object.prototype.toString;
+
+var typeOf = function(val){
+  switch (toString.call(val)) {
+    case '[object Function]': return 'function'
+    case '[object Date]': return 'date'
+    case '[object RegExp]': return 'regexp'
+    case '[object Arguments]': return 'arguments'
+    case '[object Array]': return 'array'
+    case '[object String]': return 'string'
+  }
+
+  if (typeof val == 'object' && val && typeof val.length == 'number') {
+    try {
+      if (typeof val.callee == 'function') return 'arguments';
+    } catch (ex) {
+      if (ex instanceof TypeError) {
+        return 'arguments';
+      }
+    }
+  }
+
+  if (val === null) return 'null'
+  if (val === undefined) return 'undefined'
+  if (val && val.nodeType === 1) return 'element'
+  if (val === Object(val)) return 'object'
+
+  return typeof val
+};
 
 var classCallCheck = function (instance, Constructor) {
   if (!(instance instanceof Constructor)) {

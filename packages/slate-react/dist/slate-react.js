@@ -1,18 +1,11 @@
 (function (global, factory) {
-	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('react'), require('slate-prop-types'), require('react-immutable-proptypes'), require('slate'), require('immutable'), require('slate-dev-warning'), require('get-window'), require('slate-dev-environment'), require('selection-is-backward'), require('slate-base64-serializer'), require('slate-plain-serializer'), require('slate-hotkeys'), require('react-dom')) :
-	typeof define === 'function' && define.amd ? define(['exports', 'react', 'slate-prop-types', 'react-immutable-proptypes', 'slate', 'immutable', 'slate-dev-warning', 'get-window', 'slate-dev-environment', 'selection-is-backward', 'slate-base64-serializer', 'slate-plain-serializer', 'slate-hotkeys', 'react-dom'], factory) :
-	(factory((global.SlateReact = {}),global.React,global.SlateTypes,global.ImmutableTypes,global.Slate,global.Immutable,global.warning,global.getWindow,global.slateDevEnvironment,global.isBackward,global.Base64,global.Plain,global.Hotkeys,global.ReactDOM));
-}(this, (function (exports,React,SlateTypes,ImmutableTypes,slate,immutable,warning,getWindow,slateDevEnvironment,isBackward,Base64,Plain,Hotkeys,reactDom) { 'use strict';
+	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('slate'), require('immutable'), require('react'), require('react-dom')) :
+	typeof define === 'function' && define.amd ? define(['exports', 'slate', 'immutable', 'react', 'react-dom'], factory) :
+	(factory((global.SlateReact = {}),global.Slate,global.Immutable,global.React,global.ReactDOM));
+}(this, (function (exports,slate,immutable,React,reactDom) { 'use strict';
 
+var immutable__default = 'default' in immutable ? immutable['default'] : immutable;
 React = React && React.hasOwnProperty('default') ? React['default'] : React;
-SlateTypes = SlateTypes && SlateTypes.hasOwnProperty('default') ? SlateTypes['default'] : SlateTypes;
-ImmutableTypes = ImmutableTypes && ImmutableTypes.hasOwnProperty('default') ? ImmutableTypes['default'] : ImmutableTypes;
-warning = warning && warning.hasOwnProperty('default') ? warning['default'] : warning;
-getWindow = getWindow && getWindow.hasOwnProperty('default') ? getWindow['default'] : getWindow;
-isBackward = isBackward && isBackward.hasOwnProperty('default') ? isBackward['default'] : isBackward;
-Base64 = Base64 && Base64.hasOwnProperty('default') ? Base64['default'] : Base64;
-Plain = Plain && Plain.hasOwnProperty('default') ? Plain['default'] : Plain;
-Hotkeys = Hotkeys && Hotkeys.hasOwnProperty('default') ? Hotkeys['default'] : Hotkeys;
 
 var global$1 = (typeof global !== "undefined" ? global :
             typeof self !== "undefined" ? self :
@@ -261,6 +254,7 @@ var s = 1000;
 var m = s * 60;
 var h = m * 60;
 var d = h * 24;
+var w = d * 7;
 var y = d * 365.25;
 
 /**
@@ -304,7 +298,7 @@ function parse(str) {
   if (str.length > 100) {
     return;
   }
-  var match = /^((?:\d+)?\.?\d+) *(milliseconds?|msecs?|ms|seconds?|secs?|s|minutes?|mins?|m|hours?|hrs?|h|days?|d|years?|yrs?|y)?$/i.exec(
+  var match = /^((?:\d+)?\-?\d?\.?\d+) *(milliseconds?|msecs?|ms|seconds?|secs?|s|minutes?|mins?|m|hours?|hrs?|h|days?|d|weeks?|w|years?|yrs?|y)?$/i.exec(
     str
   );
   if (!match) {
@@ -319,6 +313,10 @@ function parse(str) {
     case 'yr':
     case 'y':
       return n * y;
+    case 'weeks':
+    case 'week':
+    case 'w':
+      return n * w;
     case 'days':
     case 'day':
     case 'd':
@@ -361,16 +359,17 @@ function parse(str) {
  */
 
 function fmtShort(ms) {
-  if (ms >= d) {
+  var msAbs = Math.abs(ms);
+  if (msAbs >= d) {
     return Math.round(ms / d) + 'd';
   }
-  if (ms >= h) {
+  if (msAbs >= h) {
     return Math.round(ms / h) + 'h';
   }
-  if (ms >= m) {
+  if (msAbs >= m) {
     return Math.round(ms / m) + 'm';
   }
-  if (ms >= s) {
+  if (msAbs >= s) {
     return Math.round(ms / s) + 's';
   }
   return ms + 'ms';
@@ -385,271 +384,297 @@ function fmtShort(ms) {
  */
 
 function fmtLong(ms) {
-  return plural(ms, d, 'day') ||
-    plural(ms, h, 'hour') ||
-    plural(ms, m, 'minute') ||
-    plural(ms, s, 'second') ||
-    ms + ' ms';
+  var msAbs = Math.abs(ms);
+  if (msAbs >= d) {
+    return plural(ms, msAbs, d, 'day');
+  }
+  if (msAbs >= h) {
+    return plural(ms, msAbs, h, 'hour');
+  }
+  if (msAbs >= m) {
+    return plural(ms, msAbs, m, 'minute');
+  }
+  if (msAbs >= s) {
+    return plural(ms, msAbs, s, 'second');
+  }
+  return ms + ' ms';
 }
 
 /**
  * Pluralization helper.
  */
 
-function plural(ms, n, name) {
-  if (ms < n) {
-    return;
-  }
-  if (ms < n * 1.5) {
-    return Math.floor(ms / n) + ' ' + name;
-  }
-  return Math.ceil(ms / n) + ' ' + name + 's';
+function plural(ms, msAbs, n, name) {
+  var isPlural = msAbs >= n * 1.5;
+  return Math.round(ms / n) + ' ' + name + (isPlural ? 's' : '');
 }
 
-var debug = createCommonjsModule(function (module, exports) {
 /**
  * This is the common logic for both the Node.js and web browser
  * implementations of `debug()`.
- *
- * Expose `debug()` as the module.
  */
+function setup(env) {
+  createDebug.debug = createDebug;
+  createDebug.default = createDebug;
+  createDebug.coerce = coerce;
+  createDebug.disable = disable;
+  createDebug.enable = enable;
+  createDebug.enabled = enabled;
+  createDebug.humanize = ms;
+  Object.keys(env).forEach(function (key) {
+    createDebug[key] = env[key];
+  });
+  /**
+  * Active `debug` instances.
+  */
 
-exports = module.exports = createDebug.debug = createDebug['default'] = createDebug;
-exports.coerce = coerce;
-exports.disable = disable;
-exports.enable = enable;
-exports.enabled = enabled;
-exports.humanize = ms;
+  createDebug.instances = [];
+  /**
+  * The currently active debug mode names, and names to skip.
+  */
 
-/**
- * The currently active debug mode names, and names to skip.
- */
+  createDebug.names = [];
+  createDebug.skips = [];
+  /**
+  * Map of special "%n" handling functions, for the debug "format" argument.
+  *
+  * Valid key names are a single, lower or upper-case letter, i.e. "n" and "N".
+  */
 
-exports.names = [];
-exports.skips = [];
+  createDebug.formatters = {};
+  /**
+  * Selects a color for a debug namespace
+  * @param {String} namespace The namespace string for the for the debug instance to be colored
+  * @return {Number|String} An ANSI color code for the given namespace
+  * @api private
+  */
 
-/**
- * Map of special "%n" handling functions, for the debug "format" argument.
- *
- * Valid key names are a single, lower or upper-case letter, i.e. "n" and "N".
- */
+  function selectColor(namespace) {
+    var hash = 0;
 
-exports.formatters = {};
+    for (var i = 0; i < namespace.length; i++) {
+      hash = (hash << 5) - hash + namespace.charCodeAt(i);
+      hash |= 0; // Convert to 32bit integer
+    }
 
-/**
- * Previous log timestamp.
- */
-
-var prevTime;
-
-/**
- * Select a color.
- * @param {String} namespace
- * @return {Number}
- * @api private
- */
-
-function selectColor(namespace) {
-  var hash = 0, i;
-
-  for (i in namespace) {
-    hash  = ((hash << 5) - hash) + namespace.charCodeAt(i);
-    hash |= 0; // Convert to 32bit integer
+    return createDebug.colors[Math.abs(hash) % createDebug.colors.length];
   }
 
-  return exports.colors[Math.abs(hash) % exports.colors.length];
-}
+  createDebug.selectColor = selectColor;
+  /**
+  * Create a debugger with the given `namespace`.
+  *
+  * @param {String} namespace
+  * @return {Function}
+  * @api public
+  */
 
-/**
- * Create a debugger with the given `namespace`.
- *
- * @param {String} namespace
- * @return {Function}
- * @api public
- */
+  function createDebug(namespace) {
+    var prevTime;
 
-function createDebug(namespace) {
-
-  function debug() {
-    // disabled?
-    if (!debug.enabled) return;
-
-    var self = debug;
-
-    // set `diff` timestamp
-    var curr = +new Date();
-    var ms$$1 = curr - (prevTime || curr);
-    self.diff = ms$$1;
-    self.prev = prevTime;
-    self.curr = curr;
-    prevTime = curr;
-
-    // turn the `arguments` into a proper Array
-    var args = new Array(arguments.length);
-    for (var i = 0; i < args.length; i++) {
-      args[i] = arguments[i];
-    }
-
-    args[0] = exports.coerce(args[0]);
-
-    if ('string' !== typeof args[0]) {
-      // anything else let's inspect with %O
-      args.unshift('%O');
-    }
-
-    // apply any `formatters` transformations
-    var index = 0;
-    args[0] = args[0].replace(/%([a-zA-Z%])/g, function(match, format) {
-      // if we encounter an escaped % then don't increase the array index
-      if (match === '%%') return match;
-      index++;
-      var formatter = exports.formatters[format];
-      if ('function' === typeof formatter) {
-        var val = args[index];
-        match = formatter.call(self, val);
-
-        // now we need to remove `args[index]` since it's inlined in the `format`
-        args.splice(index, 1);
-        index--;
+    function debug() {
+      // Disabled?
+      if (!debug.enabled) {
+        return;
       }
-      return match;
-    });
 
-    // apply env-specific formatting (colors, etc.)
-    exports.formatArgs.call(self, args);
+      for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
+        args[_key] = arguments[_key];
+      }
 
-    var logFn = debug.log || exports.log || console.log.bind(console);
-    logFn.apply(self, args);
-  }
+      var self = debug; // Set `diff` timestamp
 
-  debug.namespace = namespace;
-  debug.enabled = exports.enabled(namespace);
-  debug.useColors = exports.useColors();
-  debug.color = selectColor(namespace);
+      var curr = Number(new Date());
+      var ms$$1 = curr - (prevTime || curr);
+      self.diff = ms$$1;
+      self.prev = prevTime;
+      self.curr = curr;
+      prevTime = curr;
+      args[0] = createDebug.coerce(args[0]);
 
-  // env-specific initialization logic for debug instances
-  if ('function' === typeof exports.init) {
-    exports.init(debug);
-  }
+      if (typeof args[0] !== 'string') {
+        // Anything else let's inspect with %O
+        args.unshift('%O');
+      } // Apply any `formatters` transformations
 
-  return debug;
-}
 
-/**
- * Enables a debug mode by namespaces. This can include modes
- * separated by a colon and wildcards.
- *
- * @param {String} namespaces
- * @api public
- */
+      var index = 0;
+      args[0] = args[0].replace(/%([a-zA-Z%])/g, function (match, format) {
+        // If we encounter an escaped % then don't increase the array index
+        if (match === '%%') {
+          return match;
+        }
 
-function enable(namespaces) {
-  exports.save(namespaces);
+        index++;
+        var formatter = createDebug.formatters[format];
 
-  exports.names = [];
-  exports.skips = [];
+        if (typeof formatter === 'function') {
+          var val = args[index];
+          match = formatter.call(self, val); // Now we need to remove `args[index]` since it's inlined in the `format`
 
-  var split = (typeof namespaces === 'string' ? namespaces : '').split(/[\s,]+/);
-  var len = split.length;
+          args.splice(index, 1);
+          index--;
+        }
 
-  for (var i = 0; i < len; i++) {
-    if (!split[i]) continue; // ignore empty strings
-    namespaces = split[i].replace(/\*/g, '.*?');
-    if (namespaces[0] === '-') {
-      exports.skips.push(new RegExp('^' + namespaces.substr(1) + '$'));
-    } else {
-      exports.names.push(new RegExp('^' + namespaces + '$'));
+        return match;
+      }); // Apply env-specific formatting (colors, etc.)
+
+      createDebug.formatArgs.call(self, args);
+      var logFn = self.log || createDebug.log;
+      logFn.apply(self, args);
     }
-  }
-}
 
-/**
- * Disable debug output.
- *
- * @api public
- */
+    debug.namespace = namespace;
+    debug.enabled = createDebug.enabled(namespace);
+    debug.useColors = createDebug.useColors();
+    debug.color = selectColor(namespace);
+    debug.destroy = destroy;
+    debug.extend = extend; // Debug.formatArgs = formatArgs;
+    // debug.rawLog = rawLog;
+    // env-specific initialization logic for debug instances
 
-function disable() {
-  exports.enable('');
-}
-
-/**
- * Returns true if the given mode name is enabled, false otherwise.
- *
- * @param {String} name
- * @return {Boolean}
- * @api public
- */
-
-function enabled(name) {
-  var i, len;
-  for (i = 0, len = exports.skips.length; i < len; i++) {
-    if (exports.skips[i].test(name)) {
-      return false;
+    if (typeof createDebug.init === 'function') {
+      createDebug.init(debug);
     }
+
+    createDebug.instances.push(debug);
+    return debug;
   }
-  for (i = 0, len = exports.names.length; i < len; i++) {
-    if (exports.names[i].test(name)) {
+
+  function destroy() {
+    var index = createDebug.instances.indexOf(this);
+
+    if (index !== -1) {
+      createDebug.instances.splice(index, 1);
       return true;
     }
+
+    return false;
   }
-  return false;
+
+  function extend(namespace, delimiter) {
+    return createDebug(this.namespace + (typeof delimiter === 'undefined' ? ':' : delimiter) + namespace);
+  }
+  /**
+  * Enables a debug mode by namespaces. This can include modes
+  * separated by a colon and wildcards.
+  *
+  * @param {String} namespaces
+  * @api public
+  */
+
+
+  function enable(namespaces) {
+    createDebug.save(namespaces);
+    createDebug.names = [];
+    createDebug.skips = [];
+    var i;
+    var split = (typeof namespaces === 'string' ? namespaces : '').split(/[\s,]+/);
+    var len = split.length;
+
+    for (i = 0; i < len; i++) {
+      if (!split[i]) {
+        // ignore empty strings
+        continue;
+      }
+
+      namespaces = split[i].replace(/\*/g, '.*?');
+
+      if (namespaces[0] === '-') {
+        createDebug.skips.push(new RegExp('^' + namespaces.substr(1) + '$'));
+      } else {
+        createDebug.names.push(new RegExp('^' + namespaces + '$'));
+      }
+    }
+
+    for (i = 0; i < createDebug.instances.length; i++) {
+      var instance = createDebug.instances[i];
+      instance.enabled = createDebug.enabled(instance.namespace);
+    }
+  }
+  /**
+  * Disable debug output.
+  *
+  * @api public
+  */
+
+
+  function disable() {
+    createDebug.enable('');
+  }
+  /**
+  * Returns true if the given mode name is enabled, false otherwise.
+  *
+  * @param {String} name
+  * @return {Boolean}
+  * @api public
+  */
+
+
+  function enabled(name) {
+    if (name[name.length - 1] === '*') {
+      return true;
+    }
+
+    var i;
+    var len;
+
+    for (i = 0, len = createDebug.skips.length; i < len; i++) {
+      if (createDebug.skips[i].test(name)) {
+        return false;
+      }
+    }
+
+    for (i = 0, len = createDebug.names.length; i < len; i++) {
+      if (createDebug.names[i].test(name)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+  /**
+  * Coerce `val`.
+  *
+  * @param {Mixed} val
+  * @return {Mixed}
+  * @api private
+  */
+
+
+  function coerce(val) {
+    if (val instanceof Error) {
+      return val.stack || val.message;
+    }
+
+    return val;
+  }
+
+  createDebug.enable(createDebug.load());
+  return createDebug;
 }
 
-/**
- * Coerce `val`.
- *
- * @param {Mixed} val
- * @return {Mixed}
- * @api private
- */
-
-function coerce(val) {
-  if (val instanceof Error) return val.stack || val.message;
-  return val;
-}
-});
-
-var debug_1 = debug.coerce;
-var debug_2 = debug.disable;
-var debug_3 = debug.enable;
-var debug_4 = debug.enabled;
-var debug_5 = debug.humanize;
-var debug_6 = debug.names;
-var debug_7 = debug.skips;
-var debug_8 = debug.formatters;
+var common = setup;
 
 var browser$1 = createCommonjsModule(function (module, exports) {
+function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
+
+/* eslint-env browser */
+
 /**
  * This is the web browser implementation of `debug()`.
- *
- * Expose `debug()` as the module.
  */
-
-exports = module.exports = debug;
 exports.log = log;
 exports.formatArgs = formatArgs;
 exports.save = save;
 exports.load = load;
 exports.useColors = useColors;
-exports.storage = 'undefined' != typeof chrome
-               && 'undefined' != typeof chrome.storage
-                  ? chrome.storage.local
-                  : localstorage();
-
+exports.storage = localstorage();
 /**
  * Colors.
  */
 
-exports.colors = [
-  'lightseagreen',
-  'forestgreen',
-  'goldenrod',
-  'dodgerblue',
-  'darkorchid',
-  'crimson'
-];
-
+exports.colors = ['#0000CC', '#0000FF', '#0033CC', '#0033FF', '#0066CC', '#0066FF', '#0099CC', '#0099FF', '#00CC00', '#00CC33', '#00CC66', '#00CC99', '#00CCCC', '#00CCFF', '#3300CC', '#3300FF', '#3333CC', '#3333FF', '#3366CC', '#3366FF', '#3399CC', '#3399FF', '#33CC00', '#33CC33', '#33CC66', '#33CC99', '#33CCCC', '#33CCFF', '#6600CC', '#6600FF', '#6633CC', '#6633FF', '#66CC00', '#66CC33', '#9900CC', '#9900FF', '#9933CC', '#9933FF', '#99CC00', '#99CC33', '#CC0000', '#CC0033', '#CC0066', '#CC0099', '#CC00CC', '#CC00FF', '#CC3300', '#CC3333', '#CC3366', '#CC3399', '#CC33CC', '#CC33FF', '#CC6600', '#CC6633', '#CC9900', '#CC9933', '#CCCC00', '#CCCC33', '#FF0000', '#FF0033', '#FF0066', '#FF0099', '#FF00CC', '#FF00FF', '#FF3300', '#FF3333', '#FF3366', '#FF3399', '#FF33CC', '#FF33FF', '#FF6600', '#FF6633', '#FF9900', '#FF9933', '#FFCC00', '#FFCC33'];
 /**
  * Currently only WebKit-based Web Inspectors, Firefox >= v31,
  * and the Firebug extension (any Firefox version) are known
@@ -657,79 +682,65 @@ exports.colors = [
  *
  * TODO: add a `localStorage` variable to explicitly enable/disable colors
  */
+// eslint-disable-next-line complexity
 
 function useColors() {
   // NB: In an Electron preload script, document will be defined but not fully
   // initialized. Since we know we're in Chrome, we'll just detect this case
   // explicitly
-  if (typeof window !== 'undefined' && window.process && window.process.type === 'renderer') {
+  if (typeof window !== 'undefined' && window.process && (window.process.type === 'renderer' || window.process.__nwjs)) {
     return true;
-  }
+  } // Internet Explorer and Edge do not support colors.
 
-  // is webkit? http://stackoverflow.com/a/16459606/376773
+
+  if (typeof navigator !== 'undefined' && navigator.userAgent && navigator.userAgent.toLowerCase().match(/(edge|trident)\/(\d+)/)) {
+    return false;
+  } // Is webkit? http://stackoverflow.com/a/16459606/376773
   // document is undefined in react-native: https://github.com/facebook/react-native/pull/1632
-  return (typeof document !== 'undefined' && document.documentElement && document.documentElement.style && document.documentElement.style.WebkitAppearance) ||
-    // is firebug? http://stackoverflow.com/a/398120/376773
-    (typeof window !== 'undefined' && window.console && (window.console.firebug || (window.console.exception && window.console.table))) ||
-    // is firefox >= v31?
-    // https://developer.mozilla.org/en-US/docs/Tools/Web_Console#Styling_messages
-    (typeof navigator !== 'undefined' && navigator.userAgent && navigator.userAgent.toLowerCase().match(/firefox\/(\d+)/) && parseInt(RegExp.$1, 10) >= 31) ||
-    // double check webkit in userAgent just in case we are in a worker
-    (typeof navigator !== 'undefined' && navigator.userAgent && navigator.userAgent.toLowerCase().match(/applewebkit\/(\d+)/));
+
+
+  return typeof document !== 'undefined' && document.documentElement && document.documentElement.style && document.documentElement.style.WebkitAppearance || // Is firebug? http://stackoverflow.com/a/398120/376773
+  typeof window !== 'undefined' && window.console && (window.console.firebug || window.console.exception && window.console.table) || // Is firefox >= v31?
+  // https://developer.mozilla.org/en-US/docs/Tools/Web_Console#Styling_messages
+  typeof navigator !== 'undefined' && navigator.userAgent && navigator.userAgent.toLowerCase().match(/firefox\/(\d+)/) && parseInt(RegExp.$1, 10) >= 31 || // Double check webkit in userAgent just in case we are in a worker
+  typeof navigator !== 'undefined' && navigator.userAgent && navigator.userAgent.toLowerCase().match(/applewebkit\/(\d+)/);
 }
-
-/**
- * Map %j to `JSON.stringify()`, since no Web Inspectors do that by default.
- */
-
-exports.formatters.j = function(v) {
-  try {
-    return JSON.stringify(v);
-  } catch (err) {
-    return '[UnexpectedJSONParseError]: ' + err.message;
-  }
-};
-
-
 /**
  * Colorize log arguments if enabled.
  *
  * @api public
  */
 
+
 function formatArgs(args) {
-  var useColors = this.useColors;
+  args[0] = (this.useColors ? '%c' : '') + this.namespace + (this.useColors ? ' %c' : ' ') + args[0] + (this.useColors ? '%c ' : ' ') + '+' + module.exports.humanize(this.diff);
 
-  args[0] = (useColors ? '%c' : '')
-    + this.namespace
-    + (useColors ? ' %c' : ' ')
-    + args[0]
-    + (useColors ? '%c ' : ' ')
-    + '+' + exports.humanize(this.diff);
-
-  if (!useColors) return;
+  if (!this.useColors) {
+    return;
+  }
 
   var c = 'color: ' + this.color;
-  args.splice(1, 0, c, 'color: inherit');
-
-  // the final "%c" is somewhat tricky, because there could be other
+  args.splice(1, 0, c, 'color: inherit'); // The final "%c" is somewhat tricky, because there could be other
   // arguments passed either before or after the %c, so we need to
   // figure out the correct index to insert the CSS into
+
   var index = 0;
   var lastC = 0;
-  args[0].replace(/%[a-zA-Z%]/g, function(match) {
-    if ('%%' === match) return;
+  args[0].replace(/%[a-zA-Z%]/g, function (match) {
+    if (match === '%%') {
+      return;
+    }
+
     index++;
-    if ('%c' === match) {
-      // we only are interested in the *last* %c
+
+    if (match === '%c') {
+      // We only are interested in the *last* %c
       // (the user may have provided their own)
       lastC = index;
     }
   });
-
   args.splice(lastC, 0, c);
 }
-
 /**
  * Invokes `console.log()` when available.
  * No-op when `console.log` is not a "function".
@@ -737,14 +748,14 @@ function formatArgs(args) {
  * @api public
  */
 
-function log() {
-  // this hackery is required for IE8/9, where
-  // the `console.log` function doesn't have 'apply'
-  return 'object' === typeof console
-    && console.log
-    && Function.prototype.apply.call(console.log, console, arguments);
-}
 
+function log() {
+  var _console;
+
+  // This hackery is required for IE8/9, where
+  // the `console.log` function doesn't have 'apply'
+  return (typeof console === "undefined" ? "undefined" : _typeof(console)) === 'object' && console.log && (_console = console).log.apply(_console, arguments);
+}
 /**
  * Save `namespaces`.
  *
@@ -752,16 +763,18 @@ function log() {
  * @api private
  */
 
+
 function save(namespaces) {
   try {
-    if (null == namespaces) {
-      exports.storage.removeItem('debug');
+    if (namespaces) {
+      exports.storage.setItem('debug', namespaces);
     } else {
-      exports.storage.debug = namespaces;
+      exports.storage.removeItem('debug');
     }
-  } catch(e) {}
+  } catch (error) {// Swallow
+    // XXX (@Qix-) should we be logging these?
+  }
 }
-
 /**
  * Load `namespaces`.
  *
@@ -769,26 +782,23 @@ function save(namespaces) {
  * @api private
  */
 
+
 function load() {
   var r;
-  try {
-    r = exports.storage.debug;
-  } catch(e) {}
 
+  try {
+    r = exports.storage.getItem('debug');
+  } catch (error) {} // Swallow
+  // XXX (@Qix-) should we be logging these?
   // If debug isn't set in LS, and we're in Electron, try to load $DEBUG
+
+
   if (!r && typeof process !== 'undefined' && 'env' in process) {
     r = process.env.DEBUG;
   }
 
   return r;
 }
-
-/**
- * Enable namespaces listed in `localStorage.debug` initially.
- */
-
-exports.enable(load());
-
 /**
  * Localstorage attempts to return the localstorage.
  *
@@ -800,11 +810,30 @@ exports.enable(load());
  * @api private
  */
 
+
 function localstorage() {
   try {
-    return window.localStorage;
-  } catch (e) {}
+    // TVMLKit (Apple TV JS Runtime) does not have a window object, just localStorage in the global context
+    // The Browser also has localStorage in the global context.
+    return localStorage;
+  } catch (error) {// Swallow
+    // XXX (@Qix-) should we be logging these?
+  }
 }
+
+module.exports = common(exports);
+var formatters = module.exports.formatters;
+/**
+ * Map %j to `JSON.stringify()`, since no Web Inspectors do that by default.
+ */
+
+formatters.j = function (v) {
+  try {
+    return JSON.stringify(v);
+  } catch (error) {
+    return '[UnexpectedJSONParseError]: ' + error.message;
+  }
+};
 });
 
 var browser_1 = browser$1.log;
@@ -814,6 +843,121 @@ var browser_4 = browser$1.load;
 var browser_5 = browser$1.useColors;
 var browser_6 = browser$1.storage;
 var browser_7 = browser$1.colors;
+
+/**
+ * Create a prop type checker for Slate objects with `name` and `validate`.
+ *
+ * @param {String} name
+ * @param {Function} validate
+ * @return {Function}
+ */
+
+function create(name, validate) {
+  function check(isRequired, props, propName, componentName, location) {
+    var value = props[propName];
+    if (value == null && !isRequired) return null;
+    if (value == null && isRequired) return new Error('The ' + location + ' `' + propName + '` is marked as required in `' + componentName + '`, but it was not supplied.');
+    if (validate(value)) return null;
+    return new Error('Invalid ' + location + ' `' + propName + '` supplied to `' + componentName + '`, expected a Slate `' + name + '` but received: ' + value);
+  }
+
+  function propType() {
+    for (var _len = arguments.length, args = Array(_len), _key = 0; _key < _len; _key++) {
+      args[_key] = arguments[_key];
+    }
+
+    return check.apply(undefined, [false].concat(args));
+  }
+
+  propType.isRequired = function () {
+    for (var _len2 = arguments.length, args = Array(_len2), _key2 = 0; _key2 < _len2; _key2++) {
+      args[_key2] = arguments[_key2];
+    }
+
+    return check.apply(undefined, [true].concat(args));
+  };
+
+  return propType;
+}
+
+/**
+ * Prop type checkers.
+ *
+ * @type {Object}
+ */
+
+var Types = {
+  block: create('Block', function (v) {
+    return slate.Block.isBlock(v);
+  }),
+  blocks: create('List<Block>', function (v) {
+    return slate.Block.isBlockList(v);
+  }),
+  change: create('Change', function (v) {
+    return slate.Change.isChange(v);
+  }),
+  data: create('Data', function (v) {
+    return slate.Data.isData(v);
+  }),
+  document: create('Document', function (v) {
+    return slate.Document.isDocument(v);
+  }),
+  history: create('History', function (v) {
+    return slate.History.isHistory(v);
+  }),
+  inline: create('Inline', function (v) {
+    return slate.Inline.isInline(v);
+  }),
+  inlines: create('Inline', function (v) {
+    return slate.Inline.isInlineList(v);
+  }),
+  leaf: create('Leaf', function (v) {
+    return slate.Leaf.isLeaf(v);
+  }),
+  leaves: create('List<Leaf>', function (v) {
+    return slate.Leaf.isLeafList(v);
+  }),
+  mark: create('Mark', function (v) {
+    return slate.Mark.isMark(v);
+  }),
+  marks: create('Set<Mark>', function (v) {
+    return slate.Mark.isMarkSet(v);
+  }),
+  node: create('Node', function (v) {
+    return slate.Node.isNode(v);
+  }),
+  nodes: create('List<Node>', function (v) {
+    return slate.Node.isNodeList(v);
+  }),
+  range: create('Range', function (v) {
+    return slate.Range.isRange(v);
+  }),
+  ranges: create('List<Range>', function (v) {
+    return slate.Range.isRangeList(v);
+  }),
+  schema: create('Schema', function (v) {
+    return slate.Schema.isSchema(v);
+  }),
+  stack: create('Stack', function (v) {
+    return slate.Stack.isStack(v);
+  }),
+  value: create('Value', function (v) {
+    return slate.Value.isValue(v);
+  }),
+  text: create('Text', function (v) {
+    return slate.Text.isText(v);
+  }),
+  texts: create('List<Text>', function (v) {
+    return slate.Text.isTextList(v);
+  })
+
+  /**
+   * Export.
+   *
+   * @type {Object}
+   */
+
+};
 
 var reactIs_production_min = createCommonjsModule(function (module, exports) {
 /** @license React v16.8.2
@@ -1913,6 +2057,28 @@ var propTypes = createCommonjsModule(function (module) {
 }
 });
 
+/**
+ * A `warning` helper, modeled after Facebook's and the `tiny-invariant` library.
+ *
+ * @param {Mixed} condition
+ * @param {String} message
+ */
+
+function warning(condition) {
+  var message = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : '';
+
+  if (condition) return;
+
+  var isProduction = "development" === 'production';
+  var log = console.warn || console.log; // eslint-disable-line no-console
+
+  if (isProduction) {
+    log('Warning');
+  } else {
+    log('Warning: ' + message);
+  }
+}
+
 var simpleIsEqual = function simpleIsEqual(a, b) {
   return a === b;
 };
@@ -2122,6 +2288,862 @@ var toConsumableArray = function (arr) {
  */
 
 var PLUGIN_PROPS = [].concat(toConsumableArray(EVENT_HANDLERS), ['decorateNode', 'onChange', 'renderEditor', 'renderMark', 'renderNode', 'renderPlaceholder', 'renderPortal', 'schema', 'validateNode']);
+
+var atob = self.atob.bind(self);
+var btoa = self.btoa.bind(self);
+
+/**
+ * Encode a JSON `object` as base-64 `string`.
+ *
+ * @param {Object} object
+ * @return {String}
+ */
+
+function encode(object) {
+  var string = JSON.stringify(object);
+  var encoded = btoa(encodeURIComponent(string));
+  return encoded;
+}
+
+/**
+ * Decode a base-64 `string` to a JSON `object`.
+ *
+ * @param {String} string
+ * @return {Object}
+ */
+
+function decode(string) {
+  var decoded = decodeURIComponent(atob(string));
+  var object = JSON.parse(decoded);
+  return object;
+}
+
+/**
+ * Deserialize a Value `string`.
+ *
+ * @param {String} string
+ * @return {Value}
+ */
+
+function deserialize(string, options) {
+  var raw = decode(string);
+  var value = slate.Value.fromJSON(raw, options);
+  return value;
+}
+
+/**
+ * Deserialize a Node `string`.
+ *
+ * @param {String} string
+ * @return {Node}
+ */
+
+function deserializeNode(string, options) {
+  var raw = decode(string);
+  var node = slate.Node.fromJSON(raw, options);
+  return node;
+}
+
+/**
+ * Serialize a `value`.
+ *
+ * @param {Value} value
+ * @return {String}
+ */
+
+function serialize(value, options) {
+  var raw = value.toJSON(options);
+  var encoded = encode(raw);
+  return encoded;
+}
+
+/**
+ * Serialize a `node`.
+ *
+ * @param {Node} node
+ * @return {String}
+ */
+
+function serializeNode(node, options) {
+  var raw = node.toJSON(options);
+  var encoded = encode(raw);
+  return encoded;
+}
+
+/**
+ * Export.
+ *
+ * @type {Object}
+ */
+
+var index$1 = {
+  deserialize: deserialize,
+  deserializeNode: deserializeNode,
+  serialize: serialize,
+  serializeNode: serializeNode
+};
+
+var _extends$1 = Object.assign || function (target) {
+  for (var i = 1; i < arguments.length; i++) {
+    var source = arguments[i];
+
+    for (var key in source) {
+      if (Object.prototype.hasOwnProperty.call(source, key)) {
+        target[key] = source[key];
+      }
+    }
+  }
+
+  return target;
+};
+
+/**
+ * Deserialize a plain text `string` to a Slate value.
+ *
+ * @param {String} string
+ * @param {Object} options
+ *   @property {Boolean} toJSON
+ *   @property {String|Object|Block} defaultBlock
+ *   @property {Array|Set} defaultMarks
+ * @return {Value}
+ */
+
+function deserialize$1(string) {
+  var options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+  var _options$defaultBlock = options.defaultBlock,
+      defaultBlock = _options$defaultBlock === undefined ? 'line' : _options$defaultBlock,
+      _options$defaultMarks = options.defaultMarks,
+      defaultMarks = _options$defaultMarks === undefined ? [] : _options$defaultMarks,
+      _options$delimiter = options.delimiter,
+      delimiter = _options$delimiter === undefined ? '\n' : _options$delimiter,
+      _options$toJSON = options.toJSON,
+      toJSON = _options$toJSON === undefined ? false : _options$toJSON;
+
+
+  if (immutable.Set.isSet(defaultMarks)) {
+    defaultMarks = defaultMarks.toArray();
+  }
+
+  defaultBlock = slate.Node.createProperties(defaultBlock);
+  defaultMarks = defaultMarks.map(slate.Mark.createProperties);
+
+  var json = {
+    object: 'value',
+    document: {
+      object: 'document',
+      data: {},
+      nodes: string.split(delimiter).map(function (line) {
+        return _extends$1({}, defaultBlock, {
+          object: 'block',
+          data: {},
+          nodes: [{
+            object: 'text',
+            leaves: [{
+              object: 'leaf',
+              text: line,
+              marks: defaultMarks
+            }]
+          }]
+        });
+      })
+    }
+  };
+
+  var ret = toJSON ? json : slate.Value.fromJSON(json);
+  return ret;
+}
+
+/**
+ * Serialize a Slate `value` to a plain text string.
+ *
+ * @param {Value} value
+ * @return {String}
+ */
+
+function serialize$1(value) {
+  var options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+
+  return serializeNode$1(value.document, options);
+}
+
+/**
+ * Serialize a `node` to plain text.
+ *
+ * @param {Node} node
+ * @return {String}
+ */
+
+function serializeNode$1(node) {
+  var options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+  var _options$delimiter2 = options.delimiter,
+      delimiter = _options$delimiter2 === undefined ? '\n' : _options$delimiter2;
+
+
+  if (node.object == 'document' || node.object == 'block' && slate.Block.isBlockList(node.nodes)) {
+    return node.nodes.map(serializeNode$1).join(delimiter);
+  } else {
+    return node.text;
+  }
+}
+
+/**
+ * Export.
+ *
+ * @type {Object}
+ */
+
+var index$2 = {
+  deserialize: deserialize$1,
+  serialize: serialize$1
+};
+
+var _typeof$1 = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
+
+var isBrowser = (typeof window === "undefined" ? "undefined" : _typeof$1(window)) === "object" && (typeof document === "undefined" ? "undefined" : _typeof$1(document)) === 'object' && document.nodeType === 9;
+
+var slicedToArray$1 = function () {
+  function sliceIterator(arr, i) {
+    var _arr = [];
+    var _n = true;
+    var _d = false;
+    var _e = undefined;
+
+    try {
+      for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) {
+        _arr.push(_s.value);
+
+        if (i && _arr.length === i) break;
+      }
+    } catch (err) {
+      _d = true;
+      _e = err;
+    } finally {
+      try {
+        if (!_n && _i["return"]) _i["return"]();
+      } finally {
+        if (_d) throw _e;
+      }
+    }
+
+    return _arr;
+  }
+
+  return function (arr, i) {
+    if (Array.isArray(arr)) {
+      return arr;
+    } else if (Symbol.iterator in Object(arr)) {
+      return sliceIterator(arr, i);
+    } else {
+      throw new TypeError("Invalid attempt to destructure non-iterable instance");
+    }
+  };
+}();
+
+/**
+ * Browser matching rules.
+ *
+ * @type {Array}
+ */
+
+var BROWSER_RULES = [['edge', /Edge\/([0-9\._]+)/], ['chrome', /(?!Chrom.*OPR)Chrom(?:e|ium)\/([0-9\.]+)(:?\s|$)/], ['firefox', /Firefox\/([0-9\.]+)(?:\s|$)/], ['opera', /Opera\/([0-9\.]+)(?:\s|$)/], ['opera', /OPR\/([0-9\.]+)(:?\s|$)$/], ['ie', /Trident\/7\.0.*rv\:([0-9\.]+)\).*Gecko$/], ['ie', /MSIE\s([0-9\.]+);.*Trident\/[4-7].0/], ['ie', /MSIE\s(7\.0)/], ['android', /Android\s([0-9\.]+)/], ['safari', /Version\/([0-9\._]+).*Safari/]];
+
+var browser$4 = void 0;
+
+if (isBrowser) {
+  var _iteratorNormalCompletion = true;
+  var _didIteratorError = false;
+  var _iteratorError = undefined;
+
+  try {
+    for (var _iterator = BROWSER_RULES[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
+      var _ref = _step.value;
+
+      var _ref2 = slicedToArray$1(_ref, 2);
+
+      var name = _ref2[0];
+      var regexp = _ref2[1];
+
+      if (regexp.test(window.navigator.userAgent)) {
+        browser$4 = name;
+        break;
+      }
+    }
+  } catch (err) {
+    _didIteratorError = true;
+    _iteratorError = err;
+  } finally {
+    try {
+      if (!_iteratorNormalCompletion && _iterator.return) {
+        _iterator.return();
+      }
+    } finally {
+      if (_didIteratorError) {
+        throw _iteratorError;
+      }
+    }
+  }
+}
+
+/**
+ * Operating system matching rules.
+ *
+ * @type {Array}
+ */
+
+var OS_RULES = [['ios', /os ([\.\_\d]+) like mac os/i], // must be before the macos rule
+['macos', /mac os x/i], ['android', /android/i], ['firefoxos', /mozilla\/[a-z\.\_\d]+ \((?:mobile)|(?:tablet)/i], ['windows', /windows\s*(?:nt)?\s*([\.\_\d]+)/i]];
+
+var os = void 0;
+
+if (isBrowser) {
+  var _iteratorNormalCompletion2 = true;
+  var _didIteratorError2 = false;
+  var _iteratorError2 = undefined;
+
+  try {
+    for (var _iterator2 = OS_RULES[Symbol.iterator](), _step2; !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true) {
+      var _ref3 = _step2.value;
+
+      var _ref4 = slicedToArray$1(_ref3, 2);
+
+      var _name = _ref4[0];
+      var _regexp = _ref4[1];
+
+      if (_regexp.test(window.navigator.userAgent)) {
+        os = _name;
+        break;
+      }
+    }
+  } catch (err) {
+    _didIteratorError2 = true;
+    _iteratorError2 = err;
+  } finally {
+    try {
+      if (!_iteratorNormalCompletion2 && _iterator2.return) {
+        _iterator2.return();
+      }
+    } finally {
+      if (_didIteratorError2) {
+        throw _iteratorError2;
+      }
+    }
+  }
+}
+
+/**
+ * Feature matching rules.
+ *
+ * @type {Array}
+ */
+
+var FEATURE_RULES = [['inputeventslevel1', function (window) {
+  var event = window.InputEvent ? new window.InputEvent('input') : {};
+  var support = 'inputType' in event;
+  return support;
+}], ['inputeventslevel2', function (window) {
+  var element = window.document.createElement('div');
+  element.contentEditable = true;
+  var support = 'onbeforeinput' in element;
+  return support;
+}]];
+
+var features = [];
+
+if (isBrowser) {
+  var _iteratorNormalCompletion3 = true;
+  var _didIteratorError3 = false;
+  var _iteratorError3 = undefined;
+
+  try {
+    for (var _iterator3 = FEATURE_RULES[Symbol.iterator](), _step3; !(_iteratorNormalCompletion3 = (_step3 = _iterator3.next()).done); _iteratorNormalCompletion3 = true) {
+      var _ref5 = _step3.value;
+
+      var _ref6 = slicedToArray$1(_ref5, 2);
+
+      var _name2 = _ref6[0];
+      var test = _ref6[1];
+
+      if (test(window)) {
+        features.push(_name2);
+      }
+    }
+  } catch (err) {
+    _didIteratorError3 = true;
+    _iteratorError3 = err;
+  } finally {
+    try {
+      if (!_iteratorNormalCompletion3 && _iterator3.return) {
+        _iterator3.return();
+      }
+    } finally {
+      if (_didIteratorError3) {
+        throw _iteratorError3;
+      }
+    }
+  }
+}
+
+var IS_FIREFOX = browser$4 === 'firefox';
+var IS_SAFARI = browser$4 === 'safari';
+var IS_IE = browser$4 === 'ie';
+var IS_EDGE = browser$4 === 'edge';
+
+var IS_IOS = os === 'ios';
+var IS_MAC = os === 'macos';
+var HAS_INPUT_EVENTS_LEVEL_1 = features.includes('inputeventslevel1');
+var HAS_INPUT_EVENTS_LEVEL_2 = features.includes('inputeventslevel2');
+
+/**
+ * Module exports.
+ */
+
+var getDocument_1 = getDocument;
+
+// defined by w3c
+var DOCUMENT_NODE = 9;
+
+/**
+ * Returns `true` if `w` is a Document object, or `false` otherwise.
+ *
+ * @param {?} d - Document object, maybe
+ * @return {Boolean}
+ * @private
+ */
+
+function isDocument (d) {
+  return d && d.nodeType === DOCUMENT_NODE;
+}
+
+/**
+ * Returns the `document` object associated with the given `node`, which may be
+ * a DOM element, the Window object, a Selection, a Range. Basically any DOM
+ * object that references the Document in some way, this function will find it.
+ *
+ * @param {Mixed} node - DOM node, selection, or range in which to find the `document` object
+ * @return {Document} the `document` object associated with `node`
+ * @public
+ */
+
+function getDocument(node) {
+  if (isDocument(node)) {
+    return node;
+
+  } else if (isDocument(node.ownerDocument)) {
+    return node.ownerDocument;
+
+  } else if (isDocument(node.document)) {
+    return node.document;
+
+  } else if (node.parentNode) {
+    return getDocument(node.parentNode);
+
+  // Range support
+  } else if (node.commonAncestorContainer) {
+    return getDocument(node.commonAncestorContainer);
+
+  } else if (node.startContainer) {
+    return getDocument(node.startContainer);
+
+  // Selection support
+  } else if (node.anchorNode) {
+    return getDocument(node.anchorNode);
+  }
+}
+
+// this is a browser-only module. There is a non-browser equivalent in the same
+// directory. This is done using a `package.json` browser field.
+// old-IE fallback logic: http://stackoverflow.com/a/10260692
+var needsIeFallback_br =  !!document.attachEvent && window !== document.parentWindow;
+
+/**
+ * Module dependencies.
+ */
+
+
+
+/**
+ * Module exports.
+ */
+
+var getWindow_1 = getWindow;
+
+
+
+/**
+ * Returns `true` if `w` is a Window object, or `false` otherwise.
+ *
+ * @param {Mixed} w - Window object, maybe
+ * @return {Boolean}
+ * @private
+ */
+
+function isWindow (w) {
+  return w && w.window === w;
+}
+
+/**
+ * Returns the `window` object associated with the given `node`, which may be
+ * a DOM element, the Window object, a Selection, a Range. Basically any DOM
+ * object that references the Window in some way, this function will find it.
+ *
+ * @param {Mixed} node - DOM node, selection, or range in which to find the `window` object
+ * @return {Window} the `window` object associated with `node`
+ * @public
+ */
+
+function getWindow(node) {
+  if (isWindow(node)) {
+    return node;
+  }
+
+  var doc = getDocument_1(node);
+
+  if (needsIeFallback_br) {
+    // In IE 6-8, only the variable 'window' can be used to connect events (others
+    // may be only copies).
+    doc.parentWindow.execScript('document._parentWindow = window;', 'Javascript');
+    var win = doc._parentWindow;
+    // to prevent memory leak, unset it after use
+    // another possibility is to add an onUnload handler,
+    // (which seems overkill to @liucougar)
+    doc._parentWindow = null;
+    return win;
+  } else {
+    // standards-compliant and newer IE
+    return doc.defaultView || doc.parentWindow;
+  }
+}
+
+var lib = createCommonjsModule(function (module, exports) {
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+/**
+ * Constants.
+ */
+
+var IS_MAC = typeof window != 'undefined' && /Mac|iPod|iPhone|iPad/.test(window.navigator.platform);
+
+var MODIFIERS = {
+  alt: 'altKey',
+  control: 'ctrlKey',
+  meta: 'metaKey',
+  shift: 'shiftKey'
+};
+
+var ALIASES = {
+  add: '+',
+  break: 'pause',
+  cmd: 'meta',
+  command: 'meta',
+  ctl: 'control',
+  ctrl: 'control',
+  del: 'delete',
+  down: 'arrowdown',
+  esc: 'escape',
+  ins: 'insert',
+  left: 'arrowleft',
+  mod: IS_MAC ? 'meta' : 'control',
+  opt: 'alt',
+  option: 'alt',
+  return: 'enter',
+  right: 'arrowright',
+  space: ' ',
+  spacebar: ' ',
+  up: 'arrowup',
+  win: 'meta',
+  windows: 'meta'
+};
+
+var CODES = {
+  backspace: 8,
+  tab: 9,
+  enter: 13,
+  shift: 16,
+  control: 17,
+  alt: 18,
+  pause: 19,
+  capslock: 20,
+  escape: 27,
+  ' ': 32,
+  pageup: 33,
+  pagedown: 34,
+  end: 35,
+  home: 36,
+  arrowleft: 37,
+  arrowup: 38,
+  arrowright: 39,
+  arrowdown: 40,
+  insert: 45,
+  delete: 46,
+  meta: 91,
+  numlock: 144,
+  scrolllock: 145,
+  ';': 186,
+  '=': 187,
+  ',': 188,
+  '-': 189,
+  '.': 190,
+  '/': 191,
+  '`': 192,
+  '[': 219,
+  '\\': 220,
+  ']': 221,
+  '\'': 222
+};
+
+for (var f = 1; f < 20; f++) {
+  CODES['f' + f] = 111 + f;
+}
+
+/**
+ * Is hotkey?
+ */
+
+function isHotkey(hotkey, options, event) {
+  if (options && !('byKey' in options)) {
+    event = options;
+    options = null;
+  }
+
+  if (!Array.isArray(hotkey)) {
+    hotkey = [hotkey];
+  }
+
+  var array = hotkey.map(function (string) {
+    return parseHotkey(string, options);
+  });
+  var check = function check(e) {
+    return array.some(function (object) {
+      return compareHotkey(object, e);
+    });
+  };
+  var ret = event == null ? check : check(event);
+  return ret;
+}
+
+function isCodeHotkey(hotkey, event) {
+  return isHotkey(hotkey, event);
+}
+
+function isKeyHotkey(hotkey, event) {
+  return isHotkey(hotkey, { byKey: true }, event);
+}
+
+/**
+ * Parse.
+ */
+
+function parseHotkey(hotkey, options) {
+  var byKey = options && options.byKey;
+  var ret = {};
+
+  // Special case to handle the `+` key since we use it as a separator.
+  hotkey = hotkey.replace('++', '+add');
+  var values = hotkey.split('+');
+  var length = values.length;
+
+  // Ensure that all the modifiers are set to false unless the hotkey has them.
+
+  for (var k in MODIFIERS) {
+    ret[MODIFIERS[k]] = false;
+  }
+
+  var _iteratorNormalCompletion = true;
+  var _didIteratorError = false;
+  var _iteratorError = undefined;
+
+  try {
+    for (var _iterator = values[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
+      var value = _step.value;
+
+      var optional = value.endsWith('?');
+
+      if (optional) {
+        value = value.slice(0, -1);
+      }
+
+      var name = toKeyName(value);
+      var modifier = MODIFIERS[name];
+
+      if (length === 1 || !modifier) {
+        if (byKey) {
+          ret.key = name;
+        } else {
+          ret.which = toKeyCode(value);
+        }
+      }
+
+      if (modifier) {
+        ret[modifier] = optional ? null : true;
+      }
+    }
+  } catch (err) {
+    _didIteratorError = true;
+    _iteratorError = err;
+  } finally {
+    try {
+      if (!_iteratorNormalCompletion && _iterator.return) {
+        _iterator.return();
+      }
+    } finally {
+      if (_didIteratorError) {
+        throw _iteratorError;
+      }
+    }
+  }
+
+  return ret;
+}
+
+/**
+ * Compare.
+ */
+
+function compareHotkey(object, event) {
+  for (var key in object) {
+    var expected = object[key];
+    var actual = void 0;
+
+    if (expected == null) {
+      continue;
+    }
+
+    if (key === 'key') {
+      actual = event.key.toLowerCase();
+    } else if (key === 'which') {
+      actual = expected === 91 && event.which === 93 ? 91 : event.which;
+    } else {
+      actual = event[key];
+    }
+
+    if (actual == null && expected === false) {
+      continue;
+    }
+
+    if (actual !== expected) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Utils.
+ */
+
+function toKeyCode(name) {
+  name = toKeyName(name);
+  var code = CODES[name] || name.toUpperCase().charCodeAt(0);
+  return code;
+}
+
+function toKeyName(name) {
+  name = name.toLowerCase();
+  name = ALIASES[name] || name;
+  return name;
+}
+
+/**
+ * Export.
+ */
+
+exports.default = isHotkey;
+exports.isHotkey = isHotkey;
+exports.isCodeHotkey = isCodeHotkey;
+exports.isKeyHotkey = isKeyHotkey;
+exports.parseHotkey = parseHotkey;
+exports.compareHotkey = compareHotkey;
+exports.toKeyCode = toKeyCode;
+exports.toKeyName = toKeyName;
+});
+
+unwrapExports(lib);
+var lib_1 = lib.isHotkey;
+var lib_2 = lib.isCodeHotkey;
+var lib_3 = lib.isKeyHotkey;
+var lib_4 = lib.parseHotkey;
+var lib_5 = lib.compareHotkey;
+var lib_6 = lib.toKeyCode;
+var lib_7 = lib.toKeyName;
+
+/**
+ * Hotkey mappings for each platform.
+ *
+ * @type {Object}
+ */
+
+var HOTKEYS = {
+  bold: 'mod+b',
+  compose: ['down', 'left', 'right', 'up', 'backspace', 'enter'],
+  moveBackward: 'left',
+  moveForward: 'right',
+  moveWordBackward: 'ctrl+left',
+  moveWordForward: 'ctrl+right',
+  deleteBackward: 'shift?+backspace',
+  deleteForward: 'shift?+delete',
+  extendBackward: 'shift+left',
+  extendForward: 'shift+right',
+  italic: 'mod+i',
+  splitBlock: 'shift?+enter',
+  undo: 'mod+z'
+};
+
+var APPLE_HOTKEYS = {
+  moveLineBackward: 'opt+up',
+  moveLineForward: 'opt+down',
+  moveWordBackward: 'opt+left',
+  moveWordForward: 'opt+right',
+  deleteBackward: ['ctrl+backspace', 'ctrl+h'],
+  deleteForward: ['ctrl+delete', 'ctrl+d'],
+  deleteLineBackward: 'cmd+shift?+backspace',
+  deleteLineForward: ['cmd+shift?+delete', 'ctrl+k'],
+  deleteWordBackward: 'opt+shift?+backspace',
+  deleteWordForward: 'opt+shift?+delete',
+  extendLineBackward: 'opt+shift+up',
+  extendLineForward: 'opt+shift+down',
+  redo: 'cmd+shift+z',
+  transposeCharacter: 'ctrl+t'
+};
+
+var WINDOWS_HOTKEYS = {
+  deleteWordBackward: 'ctrl+shift?+backspace',
+  deleteWordForward: 'ctrl+shift?+delete',
+  redo: 'ctrl+y'
+
+  /**
+   * Hotkeys.
+   *
+   * @type {Object}
+   */
+
+};var Hotkeys = {};
+
+var IS_APPLE = IS_IOS || IS_MAC;
+var IS_WINDOWS$1 = !IS_APPLE;
+var KEYS = [].concat(Object.keys(HOTKEYS)).concat(Object.keys(APPLE_HOTKEYS)).concat(Object.keys(WINDOWS_HOTKEYS));
+
+KEYS.forEach(function (key) {
+  var method = 'is' + key[0].toUpperCase() + key.slice(1);
+  if (Hotkeys[method]) return;
+
+  var generic = HOTKEYS[key];
+  var apple = APPLE_HOTKEYS[key];
+  var windows = WINDOWS_HOTKEYS[key];
+
+  var isGeneric = generic && lib_3(generic);
+  var isApple = apple && lib_3(apple);
+  var isWindows = windows && lib_3(windows);
+
+  Hotkeys[method] = function (event) {
+    if (isGeneric && isGeneric(event)) return true;
+    if (IS_APPLE && isApple && isApple(event)) return true;
+    if (IS_WINDOWS$1 && isWindows && isWindows(event)) return true;
+    return false;
+  };
+});
 
 /**
  * Checks if `value` is the
@@ -2663,6 +3685,247 @@ function throttle(func, wait, options) {
 
 var throttle_1 = throttle;
 
+var ANONYMOUS = "<<anonymous>>";
+
+var ImmutablePropTypes = {
+  listOf: createListOfTypeChecker,
+  mapOf: createMapOfTypeChecker,
+  orderedMapOf: createOrderedMapOfTypeChecker,
+  setOf: createSetOfTypeChecker,
+  orderedSetOf: createOrderedSetOfTypeChecker,
+  stackOf: createStackOfTypeChecker,
+  iterableOf: createIterableOfTypeChecker,
+  recordOf: createRecordOfTypeChecker,
+  shape: createShapeChecker,
+  contains: createShapeChecker,
+  mapContains: createMapContainsChecker,
+  // Primitive Types
+  list: createImmutableTypeChecker("List", immutable__default.List.isList),
+  map: createImmutableTypeChecker("Map", immutable__default.Map.isMap),
+  orderedMap: createImmutableTypeChecker("OrderedMap", immutable__default.OrderedMap.isOrderedMap),
+  set: createImmutableTypeChecker("Set", immutable__default.Set.isSet),
+  orderedSet: createImmutableTypeChecker("OrderedSet", immutable__default.OrderedSet.isOrderedSet),
+  stack: createImmutableTypeChecker("Stack", immutable__default.Stack.isStack),
+  seq: createImmutableTypeChecker("Seq", immutable__default.Seq.isSeq),
+  record: createImmutableTypeChecker("Record", function (isRecord) {
+    return isRecord instanceof immutable__default.Record;
+  }),
+  iterable: createImmutableTypeChecker("Iterable", immutable__default.Iterable.isIterable)
+};
+
+function getPropType(propValue) {
+  var propType = typeof propValue;
+  if (Array.isArray(propValue)) {
+    return "array";
+  }
+  if (propValue instanceof RegExp) {
+    // Old webkits (at least until Android 4.0) return 'function' rather than
+    // 'object' for typeof a RegExp. We'll normalize this here so that /bla/
+    // passes PropTypes.object.
+    return "object";
+  }
+  if (propValue instanceof immutable__default.Iterable) {
+    return "Immutable." + propValue.toSource().split(" ")[0];
+  }
+  return propType;
+}
+
+function createChainableTypeChecker(validate) {
+  function checkType(isRequired, props, propName, componentName, location, propFullName) {
+    for (var _len = arguments.length, rest = Array(_len > 6 ? _len - 6 : 0), _key = 6; _key < _len; _key++) {
+      rest[_key - 6] = arguments[_key];
+    }
+
+    propFullName = propFullName || propName;
+    componentName = componentName || ANONYMOUS;
+    if (props[propName] == null) {
+      var locationName = location;
+      if (isRequired) {
+        return new Error("Required " + locationName + " `" + propFullName + "` was not specified in " + ("`" + componentName + "`."));
+      }
+    } else {
+      return validate.apply(undefined, [props, propName, componentName, location, propFullName].concat(rest));
+    }
+  }
+
+  var chainedCheckType = checkType.bind(null, false);
+  chainedCheckType.isRequired = checkType.bind(null, true);
+
+  return chainedCheckType;
+}
+
+function createImmutableTypeChecker(immutableClassName, immutableClassTypeValidator) {
+  function validate(props, propName, componentName, location, propFullName) {
+    var propValue = props[propName];
+    if (!immutableClassTypeValidator(propValue)) {
+      var propType = getPropType(propValue);
+      return new Error("Invalid " + location + " `" + propFullName + "` of type `" + propType + "` " + ("supplied to `" + componentName + "`, expected `" + immutableClassName + "`."));
+    }
+    return null;
+  }
+  return createChainableTypeChecker(validate);
+}
+
+function createIterableTypeChecker(typeChecker, immutableClassName, immutableClassTypeValidator) {
+
+  function validate(props, propName, componentName, location, propFullName) {
+    for (var _len = arguments.length, rest = Array(_len > 5 ? _len - 5 : 0), _key = 5; _key < _len; _key++) {
+      rest[_key - 5] = arguments[_key];
+    }
+
+    var propValue = props[propName];
+    if (!immutableClassTypeValidator(propValue)) {
+      var locationName = location;
+      var propType = getPropType(propValue);
+      return new Error("Invalid " + locationName + " `" + propFullName + "` of type " + ("`" + propType + "` supplied to `" + componentName + "`, expected an Immutable.js " + immutableClassName + "."));
+    }
+
+    if (typeof typeChecker !== "function") {
+      return new Error("Invalid typeChecker supplied to `" + componentName + "` " + ("for propType `" + propFullName + "`, expected a function."));
+    }
+
+    var propValues = propValue.toArray();
+    for (var i = 0, len = propValues.length; i < len; i++) {
+      var error = typeChecker.apply(undefined, [propValues, i, componentName, location, "" + propFullName + "[" + i + "]"].concat(rest));
+      if (error instanceof Error) {
+        return error;
+      }
+    }
+  }
+  return createChainableTypeChecker(validate);
+}
+
+function createKeysTypeChecker(typeChecker) {
+
+  function validate(props, propName, componentName, location, propFullName) {
+    for (var _len = arguments.length, rest = Array(_len > 5 ? _len - 5 : 0), _key = 5; _key < _len; _key++) {
+      rest[_key - 5] = arguments[_key];
+    }
+
+    var propValue = props[propName];
+    if (typeof typeChecker !== "function") {
+      return new Error("Invalid keysTypeChecker (optional second argument) supplied to `" + componentName + "` " + ("for propType `" + propFullName + "`, expected a function."));
+    }
+
+    var keys = propValue.keySeq().toArray();
+    for (var i = 0, len = keys.length; i < len; i++) {
+      var error = typeChecker.apply(undefined, [keys, i, componentName, location, "" + propFullName + " -> key(" + keys[i] + ")"].concat(rest));
+      if (error instanceof Error) {
+        return error;
+      }
+    }
+  }
+  return createChainableTypeChecker(validate);
+}
+
+function createListOfTypeChecker(typeChecker) {
+  return createIterableTypeChecker(typeChecker, "List", immutable__default.List.isList);
+}
+
+function createMapOfTypeCheckerFactory(valuesTypeChecker, keysTypeChecker, immutableClassName, immutableClassTypeValidator) {
+  function validate() {
+    for (var _len = arguments.length, args = Array(_len), _key = 0; _key < _len; _key++) {
+      args[_key] = arguments[_key];
+    }
+
+    return createIterableTypeChecker(valuesTypeChecker, immutableClassName, immutableClassTypeValidator).apply(undefined, args) || keysTypeChecker && createKeysTypeChecker(keysTypeChecker).apply(undefined, args);
+  }
+
+  return createChainableTypeChecker(validate);
+}
+
+function createMapOfTypeChecker(valuesTypeChecker, keysTypeChecker) {
+  return createMapOfTypeCheckerFactory(valuesTypeChecker, keysTypeChecker, "Map", immutable__default.Map.isMap);
+}
+
+function createOrderedMapOfTypeChecker(valuesTypeChecker, keysTypeChecker) {
+  return createMapOfTypeCheckerFactory(valuesTypeChecker, keysTypeChecker, "OrderedMap", immutable__default.OrderedMap.isOrderedMap);
+}
+
+function createSetOfTypeChecker(typeChecker) {
+  return createIterableTypeChecker(typeChecker, "Set", immutable__default.Set.isSet);
+}
+
+function createOrderedSetOfTypeChecker(typeChecker) {
+  return createIterableTypeChecker(typeChecker, "OrderedSet", immutable__default.OrderedSet.isOrderedSet);
+}
+
+function createStackOfTypeChecker(typeChecker) {
+  return createIterableTypeChecker(typeChecker, "Stack", immutable__default.Stack.isStack);
+}
+
+function createIterableOfTypeChecker(typeChecker) {
+  return createIterableTypeChecker(typeChecker, "Iterable", immutable__default.Iterable.isIterable);
+}
+
+function createRecordOfTypeChecker(recordKeys) {
+  function validate(props, propName, componentName, location, propFullName) {
+    for (var _len = arguments.length, rest = Array(_len > 5 ? _len - 5 : 0), _key = 5; _key < _len; _key++) {
+      rest[_key - 5] = arguments[_key];
+    }
+
+    var propValue = props[propName];
+    if (!(propValue instanceof immutable__default.Record)) {
+      var propType = getPropType(propValue);
+      var locationName = location;
+      return new Error("Invalid " + locationName + " `" + propFullName + "` of type `" + propType + "` " + ("supplied to `" + componentName + "`, expected an Immutable.js Record."));
+    }
+    for (var key in recordKeys) {
+      var checker = recordKeys[key];
+      if (!checker) {
+        continue;
+      }
+      var mutablePropValue = propValue.toObject();
+      var error = checker.apply(undefined, [mutablePropValue, key, componentName, location, "" + propFullName + "." + key].concat(rest));
+      if (error) {
+        return error;
+      }
+    }
+  }
+  return createChainableTypeChecker(validate);
+}
+
+// there is some irony in the fact that shapeTypes is a standard hash and not an immutable collection
+function createShapeTypeChecker(shapeTypes) {
+  var immutableClassName = arguments[1] === undefined ? "Iterable" : arguments[1];
+  var immutableClassTypeValidator = arguments[2] === undefined ? immutable__default.Iterable.isIterable : arguments[2];
+
+  function validate(props, propName, componentName, location, propFullName) {
+    for (var _len = arguments.length, rest = Array(_len > 5 ? _len - 5 : 0), _key = 5; _key < _len; _key++) {
+      rest[_key - 5] = arguments[_key];
+    }
+
+    var propValue = props[propName];
+    if (!immutableClassTypeValidator(propValue)) {
+      var propType = getPropType(propValue);
+      var locationName = location;
+      return new Error("Invalid " + locationName + " `" + propFullName + "` of type `" + propType + "` " + ("supplied to `" + componentName + "`, expected an Immutable.js " + immutableClassName + "."));
+    }
+    var mutablePropValue = propValue.toObject();
+    for (var key in shapeTypes) {
+      var checker = shapeTypes[key];
+      if (!checker) {
+        continue;
+      }
+      var error = checker.apply(undefined, [mutablePropValue, key, componentName, location, "" + propFullName + "." + key].concat(rest));
+      if (error) {
+        return error;
+      }
+    }
+  }
+  return createChainableTypeChecker(validate);
+}
+
+function createShapeChecker(shapeTypes) {
+  return createShapeTypeChecker(shapeTypes);
+}
+
+function createMapContainsChecker(shapeTypes) {
+  return createShapeTypeChecker(shapeTypes, "Map", immutable__default.Map.isMap);
+}
+
+var ImmutablePropTypes_1 = ImmutablePropTypes;
+
 /**
  * Offset key parser regex.
  *
@@ -2727,7 +3990,7 @@ var OffsetKey = {
  * @type {Function}
  */
 
-var debug$2 = browser$1('slate:leaves');
+var debug = browser$1('slate:leaves');
 
 /**
  * Leaf.
@@ -2925,14 +4188,14 @@ var Leaf = function (_React$Component) {
  */
 
 Leaf.propTypes = {
-  block: SlateTypes.block.isRequired,
+  block: Types.block.isRequired,
   editor: propTypes.object.isRequired,
   index: propTypes.number.isRequired,
-  leaves: SlateTypes.leaves.isRequired,
-  marks: SlateTypes.marks.isRequired,
-  node: SlateTypes.node.isRequired,
+  leaves: Types.leaves.isRequired,
+  marks: Types.marks.isRequired,
+  node: Types.node.isRequired,
   offset: propTypes.number.isRequired,
-  parent: SlateTypes.node.isRequired,
+  parent: Types.node.isRequired,
   text: propTypes.string.isRequired };
 
 var _initialiseProps = function _initialiseProps() {
@@ -2943,7 +4206,7 @@ var _initialiseProps = function _initialiseProps() {
       args[_key2 - 1] = arguments[_key2];
     }
 
-    debug$2.apply(undefined, [message, _this2.props.node.key + '-' + _this2.props.index].concat(args));
+    debug.apply(undefined, [message, _this2.props.node.key + '-' + _this2.props.index].concat(args));
   };
 };
 
@@ -2953,7 +4216,7 @@ var _initialiseProps = function _initialiseProps() {
  * @type {Function}
  */
 
-var debug$3 = browser$1('slate:node');
+var debug$1 = browser$1('slate:node');
 
 /**
  * Text.
@@ -3089,11 +4352,11 @@ var Text = function (_React$Component) {
  */
 
 Text.propTypes = {
-  block: SlateTypes.block,
-  decorations: ImmutableTypes.list.isRequired,
+  block: Types.block,
+  decorations: ImmutablePropTypes_1.list.isRequired,
   editor: propTypes.object.isRequired,
-  node: SlateTypes.node.isRequired,
-  parent: SlateTypes.node.isRequired,
+  node: Types.node.isRequired,
+  parent: Types.node.isRequired,
   style: propTypes.object };
 Text.defaultProps = {
   style: null };
@@ -3109,7 +4372,7 @@ var _initialiseProps$1 = function _initialiseProps() {
     var node = _this3.props.node;
     var key = node.key;
 
-    debug$3.apply(undefined, [message, key + ' (text)'].concat(args));
+    debug$1.apply(undefined, [message, key + ' (text)'].concat(args));
   };
 
   this.shouldComponentUpdate = function (nextProps) {
@@ -3170,7 +4433,7 @@ var _initialiseProps$1 = function _initialiseProps() {
  * @type {Function}
  */
 
-var debug$4 = browser$1('slate:void');
+var debug$2 = browser$1('slate:void');
 
 /**
  * Void.
@@ -3279,11 +4542,11 @@ var Void = function (_React$Component) {
  */
 
 Void.propTypes = {
-  block: SlateTypes.block,
+  block: Types.block,
   children: propTypes.any.isRequired,
   editor: propTypes.object.isRequired,
-  node: SlateTypes.node.isRequired,
-  parent: SlateTypes.node.isRequired,
+  node: Types.node.isRequired,
+  parent: Types.node.isRequired,
   readOnly: propTypes.bool.isRequired };
 
 var _initialiseProps$2 = function _initialiseProps() {
@@ -3299,7 +4562,7 @@ var _initialiseProps$2 = function _initialiseProps() {
         type = node.type;
 
     var id = key + ' (' + type + ')';
-    debug$4.apply(undefined, [message, '' + id].concat(args));
+    debug$2.apply(undefined, [message, '' + id].concat(args));
   };
 
   this.renderText = function () {
@@ -3455,7 +4718,7 @@ function getContainingChildOrder(children, keyOrders, order) {
  * @type {Function}
  */
 
-var debug$5 = browser$1('slate:node');
+var debug$3 = browser$1('slate:node');
 
 /**
  * Node.
@@ -3648,13 +4911,13 @@ var Node = function (_React$Component) {
  */
 
 Node.propTypes = {
-  block: SlateTypes.block,
-  decorations: ImmutableTypes.list.isRequired,
+  block: Types.block,
+  decorations: ImmutablePropTypes_1.list.isRequired,
   editor: propTypes.object.isRequired,
   isFocused: propTypes.bool.isRequired,
   isSelected: propTypes.bool.isRequired,
-  node: SlateTypes.node.isRequired,
-  parent: SlateTypes.node.isRequired,
+  node: Types.node.isRequired,
+  parent: Types.node.isRequired,
   readOnly: propTypes.bool.isRequired };
 
 var _initialiseProps$3 = function _initialiseProps() {
@@ -3669,7 +4932,7 @@ var _initialiseProps$3 = function _initialiseProps() {
     var key = node.key,
         type = node.type;
 
-    debug$5.apply(undefined, [message, key + ' (' + type + ')'].concat(args));
+    debug$3.apply(undefined, [message, key + ' (' + type + ')'].concat(args));
   };
 
   this.renderNode = function (child, isSelected, decorations) {
@@ -3769,7 +5032,7 @@ function findDOMRange(range) {
   var win = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : window;
   var anchor = range.anchor,
       focus = range.focus,
-      isBackward$$1 = range.isBackward,
+      isBackward = range.isBackward,
       isCollapsed = range.isCollapsed;
 
   var domAnchor = findDOMPoint(anchor, win);
@@ -3778,8 +5041,8 @@ function findDOMRange(range) {
   if (!domAnchor || !domFocus) return null;
 
   var r = win.document.createRange();
-  var start = isBackward$$1 ? domFocus : domAnchor;
-  var end = isBackward$$1 ? domAnchor : domFocus;
+  var start = isBackward ? domFocus : domAnchor;
+  var end = isBackward ? domAnchor : domFocus;
   r.setStart(start.node, start.offset);
   r.setEnd(end.node, end.offset);
   return r;
@@ -3812,7 +5075,7 @@ function findPoint(nativeNode, nativeOffset, value) {
       nearestNode = _normalizeNodeAndOffs.node,
       nearestOffset = _normalizeNodeAndOffs.offset;
 
-  var window = getWindow(nativeNode);
+  var window = getWindow_1(nativeNode);
   var parentNode = nearestNode.parentNode;
 
   var rangeNode = parentNode.closest(RANGE_SELECTOR);
@@ -3955,7 +5218,7 @@ function findRange(native, value) {
   var el = native.anchorNode || native.startContainer;
   if (!el) return null;
 
-  var window = getWindow(el);
+  var window = getWindow_1(el);
 
   // If the `native` object is a DOM `Range` or `StaticRange` object, change it
   // into something that looks like a DOM `Selection` instead.
@@ -3982,7 +5245,7 @@ function findRange(native, value) {
   // COMPAT: ??? The Edge browser seems to have a case where if you select the
   // last word of a span, it sets the endContainer to the containing span.
   // `selection-is-backward` doesn't handle this case.
-  if (slateDevEnvironment.IS_IE || slateDevEnvironment.IS_EDGE) {
+  if (IS_IE || IS_EDGE) {
     var domAnchor = findDOMPoint(anchor);
     var domFocus = findDOMPoint(focus);
 
@@ -4004,6 +5267,19 @@ function findRange(native, value) {
   return range;
 }
 
+function isBackward(selection) {
+    var startNode = selection.anchorNode;
+    var startOffset = selection.anchorOffset;
+    var endNode = selection.focusNode;
+    var endOffset = selection.focusOffset;
+
+    var position = startNode.compareDocumentPosition(endNode);
+
+    return !(position === 4 || (position === 0 && startOffset < endOffset));
+}
+
+var selectionIsBackward = isBackward;
+
 /**
  * CSS overflow values that would cause scrolling.
  *
@@ -4016,7 +5292,7 @@ var OVERFLOWS = ['auto', 'overlay', 'scroll'];
  * Detect whether we are running IOS version 11
  */
 
-var IS_IOS_11 = slateDevEnvironment.IS_IOS && !!window.navigator.userAgent.match(/os 11_/i);
+var IS_IOS_11 = IS_IOS && !!window.navigator.userAgent.match(/os 11_/i);
 
 /**
  * Find the nearest parent with scrolling, or window.
@@ -4065,10 +5341,10 @@ function scrollToSelection(selection) {
   if (IS_IOS_11) return;
   if (!selection.anchorNode) return;
 
-  var window = getWindow(selection.anchorNode);
+  var window = getWindow_1(selection.anchorNode);
   var scroller = findScrollContainer(selection.anchorNode, window);
   var isWindow = scroller == window.document.body || scroller == window.document.documentElement;
-  var backward = isBackward(selection);
+  var backward = selectionIsBackward(selection);
 
   var range = selection.getRangeAt(0).cloneRange();
   range.collapse(backward);
@@ -4079,7 +5355,7 @@ function scrollToSelection(selection) {
   // for vertical scroll, although horizontal may be off by 1 character.
   // https://bugs.webkit.org/show_bug.cgi?id=138949
   // https://bugs.chromium.org/p/chromium/issues/detail?id=435438
-  if (slateDevEnvironment.IS_SAFARI) {
+  if (IS_SAFARI) {
     if (range.collapsed && cursorRect.top == 0 && cursorRect.height == 0) {
       if (range.startOffset == 0) {
         range.setEnd(range.endContainer, 1);
@@ -4213,7 +5489,7 @@ var FIREFOX_NODE_TYPE_ACCESS_ERROR = /Permission denied to access property "node
  * @type {Function}
  */
 
-var debug$6 = browser$1('slate:content');
+var debug$4 = browser$1('slate:content');
 
 /**
  * Content.
@@ -4253,9 +5529,9 @@ var Content = function (_React$Component) {
       var editor = _this.props.editor;
       var value = editor.value;
       var selection = value.selection;
-      var isBackward$$1 = selection.isBackward;
+      var isBackward = selection.isBackward;
 
-      var window = getWindow(_this.element);
+      var window = getWindow_1(_this.element);
       var native = window.getSelection();
 
       // .getSelection() can return null in some cases
@@ -4275,7 +5551,7 @@ var Content = function (_React$Component) {
         if (!_this.isInEditor(anchorNode)) return;
         removeAllRanges(native);
         _this.element.blur();
-        debug$6('updateSelection', { selection: selection, native: native });
+        debug$4('updateSelection', { selection: selection, native: native });
         return;
       }
 
@@ -4316,7 +5592,7 @@ var Content = function (_React$Component) {
       if (native.setBaseAndExtent) {
         // COMPAT: Since the DOM range has no concept of backwards/forwards
         // we need to check and do the right thing here.
-        if (isBackward$$1) {
+        if (isBackward) {
           native.setBaseAndExtent(range.endContainer, range.endOffset, range.startContainer, range.startOffset);
         } else {
           native.setBaseAndExtent(range.startContainer, range.startOffset, range.endContainer, range.endOffset);
@@ -4333,11 +5609,11 @@ var Content = function (_React$Component) {
       setTimeout(function () {
         // COMPAT: In Firefox, it's not enough to create a range, you also need to
         // focus the contenteditable element too. (2016/11/16)
-        if (slateDevEnvironment.IS_FIREFOX && _this.element) _this.element.focus();
+        if (IS_FIREFOX && _this.element) _this.element.focus();
         _this.tmp.isUpdatingSelection = false;
       });
 
-      debug$6('updateSelection', { selection: selection, native: native });
+      debug$4('updateSelection', { selection: selection, native: native });
     }, _this.ref = function (element) {
       _this.element = element;
     }, _this.isInEditor = function (target) {
@@ -4356,7 +5632,7 @@ var Content = function (_React$Component) {
         // originating from an internal "restricted" element (e.g. a stepper
         // arrow on a number input)
         // see github.com/ianstormtaylor/slate/issues/1819
-        if (slateDevEnvironment.IS_FIREFOX && FIREFOX_NODE_TYPE_ACCESS_ERROR.test(err.message)) {
+        if (IS_FIREFOX && FIREFOX_NODE_TYPE_ACCESS_ERROR.test(err.message)) {
           return false;
         }
 
@@ -4366,7 +5642,7 @@ var Content = function (_React$Component) {
     }, _this.onNativeSelectionChange = throttle_1(function (event) {
       if (_this.props.readOnly) return;
 
-      var window = getWindow(event.target);
+      var window = getWindow_1(event.target);
       var activeElement = window.document.activeElement;
 
       if (activeElement !== _this.element) return;
@@ -4425,13 +5701,13 @@ var Content = function (_React$Component) {
      */
 
     value: function componentDidMount() {
-      var window = getWindow(this.element);
+      var window = getWindow_1(this.element);
 
       window.document.addEventListener('selectionchange', this.onNativeSelectionChange);
 
       // COMPAT: Restrict scope of `beforeinput` to clients that support the
       // Input Events Level 2 spec, since they are preventable events.
-      if (slateDevEnvironment.HAS_INPUT_EVENTS_LEVEL_2) {
+      if (HAS_INPUT_EVENTS_LEVEL_2) {
         this.element.addEventListener('beforeinput', this.handlers.onBeforeInput);
       }
 
@@ -4445,13 +5721,13 @@ var Content = function (_React$Component) {
   }, {
     key: 'componentWillUnmount',
     value: function componentWillUnmount() {
-      var window = getWindow(this.element);
+      var window = getWindow_1(this.element);
 
       if (window) {
         window.document.removeEventListener('selectionchange', this.onNativeSelectionChange);
       }
 
-      if (slateDevEnvironment.HAS_INPUT_EVENTS_LEVEL_2) {
+      if (HAS_INPUT_EVENTS_LEVEL_2) {
         this.element.removeEventListener('beforeinput', this.handlers.onBeforeInput);
       }
     }
@@ -4497,7 +5773,7 @@ var Content = function (_React$Component) {
      */
 
     value: function onEvent(handler, event) {
-      debug$6('onEvent', handler);
+      debug$4('onEvent', handler);
 
       // Ignore `onBlur`, `onFocus` and `onSelect` events generated
       // programmatically while updating selection.
@@ -4515,7 +5791,7 @@ var Content = function (_React$Component) {
         var value = editor.value;
         var selection = value.selection;
 
-        var window = getWindow(event.target);
+        var window = getWindow_1(event.target);
         var native = window.getSelection();
         var range = findRange(native, value);
 
@@ -4600,7 +5876,7 @@ var Content = function (_React$Component) {
         wordWrap: 'break-word'
       }, readOnly ? {} : { WebkitUserModify: 'read-write-plaintext-only' }, props.style);
 
-      debug$6('render', { props: props });
+      debug$4('render', { props: props });
 
       return React.createElement(
         Container,
@@ -4697,7 +5973,7 @@ function cloneFragment(event, value) {
     return undefined;
   };
 
-  var window = getWindow(event.target);
+  var window = getWindow_1(event.target);
   var native = window.getSelection();
   var schema = value.schema;
   var _value$selection = value.selection,
@@ -4712,7 +5988,7 @@ function cloneFragment(event, value) {
 
   // Create a fake selection so that we can add a Base64-encoded copy of the
   // fragment to the HTML, to decode on future pastes.
-  var encoded = Base64.serializeNode(fragment);
+  var encoded = index$1.serializeNode(fragment);
   var range = native.getRangeAt(0);
   var contents = range.cloneContents();
   var attach = contents.childNodes[0];
@@ -4770,7 +6046,7 @@ function cloneFragment(event, value) {
   //  Then gets plaintext for clipboard with proper linebreaks for BLOCK elements
   //  Via Plain serializer
   var valFromSelection = slate.Value.create({ document: fragment });
-  var plainText = Plain.serialize(valFromSelection);
+  var plainText = index$2.serialize(valFromSelection);
 
   // Add the phony content to a div element. This is needed to copy the
   // contents into the html clipboard register.
@@ -4783,7 +6059,7 @@ function cloneFragment(event, value) {
   // IE doesn't support arbitrary MIME types or common ones like 'text/plain';
   // it only accepts "Text" (which gets mapped to 'text/plain') and "Url"
   // (mapped to 'text/url-list'); so, we should only enter block if !IS_IE
-  if (event.clipboardData && event.clipboardData.setData && !slateDevEnvironment.IS_IE) {
+  if (event.clipboardData && event.clipboardData.setData && !IS_IE) {
     event.preventDefault();
     event.clipboardData.setData(TEXT, plainText);
     event.clipboardData.setData(FRAGMENT, encoded);
@@ -4878,7 +6154,7 @@ function getEventRange(event, value) {
   }
 
   // Else resolve a range from the caret position where the drop occured.
-  var window = getWindow(target);
+  var window = getWindow_1(target);
   var native = void 0;
 
   // COMPAT: In Firefox, `caretRangeFromPoint` doesn't exist. (2016/07/25)
@@ -4941,7 +6217,7 @@ function getEventTransfer(event) {
   // COMPAT: IE 11 doesn't populate nativeEvent with either
   // dataTransfer or clipboardData. We'll need to use the base event
   // object (2018/14/6)
-  if (!slateDevEnvironment.IS_IE && event.nativeEvent) {
+  if (!IS_IE && event.nativeEvent) {
     event = event.nativeEvent;
   }
 
@@ -4977,8 +6253,8 @@ function getEventTransfer(event) {
   }
 
   // Decode a fragment or node if they exist.
-  if (fragment) fragment = Base64.deserializeNode(fragment);
-  if (node) node = Base64.deserializeNode(node);
+  if (fragment) fragment = index$1.deserializeNode(fragment);
+  if (node) node = index$1.deserializeNode(node);
 
   // COMPAT: Edge sometimes throws 'NotSupportedError'
   // when accessing `transfer.items` (2017/7/12)
@@ -5141,7 +6417,7 @@ function setEventTransfer(event, type, content) {
  * @type {Function}
  */
 
-var debug$7 = browser$1('slate:after');
+var debug$5 = browser$1('slate:after');
 
 /**
  * The after plugin.
@@ -5161,7 +6437,7 @@ function AfterPlugin() {
    */
 
   function onBeforeInput(event, change, editor) {
-    debug$7('onBeforeInput', { event: event });
+    debug$5('onBeforeInput', { event: event });
 
     var isSynthetic = !!event.nativeEvent;
 
@@ -5277,7 +6553,7 @@ function AfterPlugin() {
    */
 
   function onBlur(event, change, editor) {
-    debug$7('onBlur', { event: event });
+    debug$5('onBlur', { event: event });
 
     change.blur();
   }
@@ -5311,7 +6587,7 @@ function AfterPlugin() {
       change.focus().moveToEndOfNode(node);
     }
 
-    debug$7('onClick', { event: event });
+    debug$5('onClick', { event: event });
   }
 
   /**
@@ -5323,7 +6599,7 @@ function AfterPlugin() {
    */
 
   function onCopy(event, change, editor) {
-    debug$7('onCopy', { event: event });
+    debug$5('onCopy', { event: event });
 
     cloneFragment(event, change.value);
   }
@@ -5337,7 +6613,7 @@ function AfterPlugin() {
    */
 
   function onCut(event, change, editor) {
-    debug$7('onCut', { event: event });
+    debug$5('onCut', { event: event });
 
     // Once the fake cut content has successfully been added to the clipboard,
     // delete the content in the current selection.
@@ -5379,7 +6655,7 @@ function AfterPlugin() {
    */
 
   function onDragEnd(event, change, editor) {
-    debug$7('onDragEnd', { event: event });
+    debug$5('onDragEnd', { event: event });
 
     isDraggingInternally = null;
   }
@@ -5393,7 +6669,7 @@ function AfterPlugin() {
    */
 
   function onDragOver(event, change, editor) {
-    debug$7('onDragOver', { event: event });
+    debug$5('onDragOver', { event: event });
   }
 
   /**
@@ -5405,7 +6681,7 @@ function AfterPlugin() {
    */
 
   function onDragStart(event, change, editor) {
-    debug$7('onDragStart', { event: event });
+    debug$5('onDragStart', { event: event });
 
     isDraggingInternally = true;
 
@@ -5428,7 +6704,7 @@ function AfterPlugin() {
     }
 
     var fragment = change.value.fragment;
-    var encoded = Base64.serializeNode(fragment);
+    var encoded = index$1.serializeNode(fragment);
     setEventTransfer(event, 'fragment', encoded);
   }
 
@@ -5441,14 +6717,14 @@ function AfterPlugin() {
    */
 
   function onDrop(event, change, editor) {
-    debug$7('onDrop', { event: event });
+    debug$5('onDrop', { event: event });
 
     var value = change.value;
     var document = value.document,
         selection = value.selection,
         schema = value.schema;
 
-    var window = getWindow(event.target);
+    var window = getWindow_1(event.target);
     var target = getEventRange(event, value);
     if (!target) return;
 
@@ -5525,9 +6801,9 @@ function AfterPlugin() {
    */
 
   function onInput(event, change, editor) {
-    debug$7('onInput', { event: event });
+    debug$5('onInput', { event: event });
 
-    var window = getWindow(event.target);
+    var window = getWindow_1(event.target);
     var value = change.value;
 
     // Get the selection point.
@@ -5594,7 +6870,7 @@ function AfterPlugin() {
    */
 
   function onKeyDown(event, change, editor) {
-    debug$7('onKeyDown', { event: event });
+    debug$5('onKeyDown', { event: event });
 
     var value = change.value;
     var document = value.document,
@@ -5606,15 +6882,15 @@ function AfterPlugin() {
     // COMPAT: In iOS, some of these hotkeys are handled in the
     // `onNativeBeforeInput` handler of the `<Content>` component in order to
     // preserve native autocorrect behavior, so they shouldn't be handled here.
-    if (Hotkeys.isSplitBlock(event) && !slateDevEnvironment.IS_IOS) {
+    if (Hotkeys.isSplitBlock(event) && !IS_IOS) {
       return hasVoidParent ? change.moveToStartOfNextText() : change.splitBlock();
     }
 
-    if (Hotkeys.isDeleteBackward(event) && !slateDevEnvironment.IS_IOS) {
+    if (Hotkeys.isDeleteBackward(event) && !IS_IOS) {
       return change.deleteCharBackward();
     }
 
-    if (Hotkeys.isDeleteForward(event) && !slateDevEnvironment.IS_IOS) {
+    if (Hotkeys.isDeleteForward(event) && !IS_IOS) {
       return change.deleteCharForward();
     }
 
@@ -5726,7 +7002,7 @@ function AfterPlugin() {
    */
 
   function onPaste(event, change, editor) {
-    debug$7('onPaste', { event: event });
+    debug$5('onPaste', { event: event });
 
     var transfer = getEventTransfer(event);
     var type = transfer.type,
@@ -5750,7 +7026,7 @@ function AfterPlugin() {
 
       var defaultBlock = startBlock;
       var defaultMarks = document.getInsertMarksAtRange(selection);
-      var frag = Plain.deserialize(text, { defaultBlock: defaultBlock, defaultMarks: defaultMarks }).document;
+      var frag = index$2.deserialize(text, { defaultBlock: defaultBlock, defaultMarks: defaultMarks }).document;
       change.insertFragment(frag);
     }
   }
@@ -5764,9 +7040,9 @@ function AfterPlugin() {
    */
 
   function onSelect(event, change, editor) {
-    debug$7('onSelect', { event: event });
+    debug$5('onSelect', { event: event });
 
-    var window = getWindow(event.target);
+    var window = getWindow_1(event.target);
     var value = change.value;
     var document = value.document,
         schema = value.schema;
@@ -5942,7 +7218,7 @@ function AfterPlugin() {
  * @type {Function}
  */
 
-var debug$8 = browser$1('slate:before');
+var debug$6 = browser$1('slate:before');
 
 /**
  * The core before plugin.
@@ -5973,9 +7249,9 @@ function BeforePlugin() {
     // COMPAT: If the browser supports Input Events Level 2, we will have
     // attached a custom handler for the real `beforeinput` events, instead of
     // allowing React's synthetic polyfill, so we need to ignore synthetics.
-    if (isSynthetic && slateDevEnvironment.HAS_INPUT_EVENTS_LEVEL_2) return true;
+    if (isSynthetic && HAS_INPUT_EVENTS_LEVEL_2) return true;
 
-    debug$8('onBeforeInput', { event: event });
+    debug$6('onBeforeInput', { event: event });
   }
 
   /**
@@ -5995,7 +7271,7 @@ function BeforePlugin() {
     var relatedTarget = event.relatedTarget,
         target = event.target;
 
-    var window = getWindow(target);
+    var window = getWindow_1(target);
 
     // COMPAT: If the current `activeElement` is still the previous one, this is
     // due to the window being blurred when the tab itself becomes unfocused, so
@@ -6024,7 +7300,7 @@ function BeforePlugin() {
       if (el.contains(relatedTarget) && node && !schema.isVoid(node)) return true;
     }
 
-    debug$8('onBlur', { event: event });
+    debug$6('onBlur', { event: event });
   }
 
   /**
@@ -6047,7 +7323,7 @@ function BeforePlugin() {
       });
     }
 
-    debug$8('onChange');
+    debug$6('onChange');
   }
 
   /**
@@ -6077,7 +7353,7 @@ function BeforePlugin() {
       }
     });
 
-    debug$8('onCompositionEnd', { event: event });
+    debug$6('onCompositionEnd', { event: event });
   }
 
   /**
@@ -6100,7 +7376,7 @@ function BeforePlugin() {
       editor.setState({ isComposing: true });
     }
 
-    debug$8('onCompositionStart', { event: event });
+    debug$6('onCompositionStart', { event: event });
   }
 
   /**
@@ -6112,13 +7388,13 @@ function BeforePlugin() {
    */
 
   function onCopy(event, change, editor) {
-    var window = getWindow(event.target);
+    var window = getWindow_1(event.target);
     isCopying = true;
     window.requestAnimationFrame(function () {
       return isCopying = false;
     });
 
-    debug$8('onCopy', { event: event });
+    debug$6('onCopy', { event: event });
   }
 
   /**
@@ -6132,13 +7408,13 @@ function BeforePlugin() {
   function onCut(event, change, editor) {
     if (editor.props.readOnly) return true;
 
-    var window = getWindow(event.target);
+    var window = getWindow_1(event.target);
     isCopying = true;
     window.requestAnimationFrame(function () {
       return isCopying = false;
     });
 
-    debug$8('onCut', { event: event });
+    debug$6('onCut', { event: event });
   }
 
   /**
@@ -6152,7 +7428,7 @@ function BeforePlugin() {
   function onDragEnd(event, change, editor) {
     isDragging = false;
 
-    debug$8('onDragEnd', { event: event });
+    debug$6('onDragEnd', { event: event });
   }
 
   /**
@@ -6164,7 +7440,7 @@ function BeforePlugin() {
    */
 
   function onDragEnter(event, change, editor) {
-    debug$8('onDragEnter', { event: event });
+    debug$6('onDragEnter', { event: event });
   }
 
   /**
@@ -6176,7 +7452,7 @@ function BeforePlugin() {
    */
 
   function onDragExit(event, change, editor) {
-    debug$8('onDragExit', { event: event });
+    debug$6('onDragExit', { event: event });
   }
 
   /**
@@ -6188,7 +7464,7 @@ function BeforePlugin() {
    */
 
   function onDragLeave(event, change, editor) {
-    debug$8('onDragLeave', { event: event });
+    debug$6('onDragLeave', { event: event });
   }
 
   /**
@@ -6214,7 +7490,7 @@ function BeforePlugin() {
     // default dragOver is prevented:
     // https://developer.microsoft.com/en-us/microsoft-edge/platform/issues/913982/
     // (2018/07/11)
-    if (slateDevEnvironment.IS_IE) event.preventDefault();
+    if (IS_IE) event.preventDefault();
 
     // If a drag is already in progress, don't do this again.
     if (!isDragging) {
@@ -6222,12 +7498,12 @@ function BeforePlugin() {
 
       // COMPAT: IE will raise an `unspecified error` if dropEffect is
       // set. (2018/07/11)
-      if (!slateDevEnvironment.IS_IE) {
+      if (!IS_IE) {
         event.nativeEvent.dataTransfer.dropEffect = 'move';
       }
     }
 
-    debug$8('onDragOver', { event: event });
+    debug$6('onDragOver', { event: event });
   }
 
   /**
@@ -6241,7 +7517,7 @@ function BeforePlugin() {
   function onDragStart(event, change, editor) {
     isDragging = true;
 
-    debug$8('onDragStart', { event: event });
+    debug$6('onDragStart', { event: event });
   }
 
   /**
@@ -6259,7 +7535,7 @@ function BeforePlugin() {
     // Prevent default so the DOM's value isn't corrupted.
     event.preventDefault();
 
-    debug$8('onDrop', { event: event });
+    debug$6('onDrop', { event: event });
   }
 
   /**
@@ -6277,18 +7553,18 @@ function BeforePlugin() {
     var el = reactDom.findDOMNode(editor);
 
     // Save the new `activeElement`.
-    var window = getWindow(event.target);
+    var window = getWindow_1(event.target);
     activeElement = window.document.activeElement;
 
     // COMPAT: If the editor has nested editable elements, the focus can go to
     // those elements. In Firefox, this must be prevented because it results in
     // issues with keyboard navigation. (2017/03/30)
-    if (slateDevEnvironment.IS_FIREFOX && event.target != el) {
+    if (IS_FIREFOX && event.target != el) {
       el.focus();
       return true;
     }
 
-    debug$8('onFocus', { event: event });
+    debug$6('onFocus', { event: event });
   }
 
   /**
@@ -6303,7 +7579,7 @@ function BeforePlugin() {
     if (isComposing) return true;
     if (change.value.selection.isBlurred) return true;
 
-    debug$8('onInput', { event: event });
+    debug$6('onInput', { event: event });
   }
 
   /**
@@ -6328,11 +7604,11 @@ function BeforePlugin() {
     // Certain hotkeys have native editing behaviors in `contenteditable`
     // elements which will change the DOM and cause our value to be out of sync,
     // so they need to always be prevented.
-    if (!slateDevEnvironment.IS_IOS && (Hotkeys.isBold(event) || Hotkeys.isDeleteBackward(event) || Hotkeys.isDeleteForward(event) || Hotkeys.isDeleteLineBackward(event) || Hotkeys.isDeleteLineForward(event) || Hotkeys.isDeleteWordBackward(event) || Hotkeys.isDeleteWordForward(event) || Hotkeys.isItalic(event) || Hotkeys.isRedo(event) || Hotkeys.isSplitBlock(event) || Hotkeys.isTransposeCharacter(event) || Hotkeys.isUndo(event))) {
+    if (!IS_IOS && (Hotkeys.isBold(event) || Hotkeys.isDeleteBackward(event) || Hotkeys.isDeleteForward(event) || Hotkeys.isDeleteLineBackward(event) || Hotkeys.isDeleteLineForward(event) || Hotkeys.isDeleteWordBackward(event) || Hotkeys.isDeleteWordForward(event) || Hotkeys.isItalic(event) || Hotkeys.isRedo(event) || Hotkeys.isSplitBlock(event) || Hotkeys.isTransposeCharacter(event) || Hotkeys.isUndo(event))) {
       event.preventDefault();
     }
 
-    debug$8('onKeyDown', { event: event });
+    debug$6('onKeyDown', { event: event });
   }
 
   /**
@@ -6349,7 +7625,7 @@ function BeforePlugin() {
     // Prevent defaults so the DOM state isn't corrupted.
     event.preventDefault();
 
-    debug$8('onPaste', { event: event });
+    debug$6('onPaste', { event: event });
   }
 
   /**
@@ -6366,10 +7642,10 @@ function BeforePlugin() {
     if (editor.props.readOnly) return true;
 
     // Save the new `activeElement`.
-    var window = getWindow(event.target);
+    var window = getWindow_1(event.target);
     activeElement = window.document.activeElement;
 
-    debug$8('onSelect', { event: event });
+    debug$6('onSelect', { event: event });
   }
 
   /**
@@ -6415,7 +7691,7 @@ function noop$1() {}
  * @type {Function}
  */
 
-var debug$9 = browser$1('slate:editor');
+var debug$7 = browser$1('slate:editor');
 
 /**
  * Editor.
@@ -6531,7 +7807,7 @@ var Editor = function (_React$Component) {
   }, {
     key: 'render',
     value: function render() {
-      debug$9('render', this);
+      debug$7('render', this);
       var props = _extends({}, this.props);
       var tree = this.stack.render('renderEditor', props, this);
       return tree;
@@ -6689,7 +7965,7 @@ Editor.propTypes = {
   spellCheck: propTypes.bool,
   style: propTypes.object,
   tabIndex: propTypes.number,
-  value: SlateTypes.value.isRequired };
+  value: Types.value.isRequired };
 Editor.defaultProps = {
   autoFocus: false,
   autoCorrect: true,
@@ -6757,7 +8033,7 @@ var _initialiseProps$4 = function _initialiseProps() {
       return;
     }
 
-    debug$9('onChange', { change: change });
+    debug$7('onChange', { change: change });
     change = _this2.resolveChange(_this2.plugins, change, change.operations.size);
 
     // Store a reference to the last `value` and `plugins` that were seen by the
@@ -6788,7 +8064,7 @@ var _initialiseProps$4 = function _initialiseProps() {
     var plugins = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : [];
     var schema = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
 
-    debug$9('resolvePlugins', { plugins: plugins, schema: schema });
+    debug$7('resolvePlugins', { plugins: plugins, schema: schema });
     _this2.tmp.resolves++;
 
     var beforePlugin = BeforePlugin();
@@ -6841,17 +8117,17 @@ var _initialiseProps$4 = function _initialiseProps() {
     return [beforePlugin, editorPlugin].concat(toConsumableArray(plugins), [afterPlugin]);
   });
   this.resolveSchema = index(function (plugins) {
-    debug$9('resolveSchema', { plugins: plugins });
+    debug$7('resolveSchema', { plugins: plugins });
     var schema = slate.Schema.create({ plugins: plugins });
     return schema;
   });
   this.resolveStack = index(function (plugins) {
-    debug$9('resolveStack', { plugins: plugins });
+    debug$7('resolveStack', { plugins: plugins });
     var stack = slate.Stack.create({ plugins: plugins });
     return stack;
   });
   this.resolveValue = index(function (plugins, value) {
-    debug$9('resolveValue', { plugins: plugins, value: value });
+    debug$7('resolveValue', { plugins: plugins, value: value });
     var change = value.change();
     change = _this2.resolveChange(plugins, change, change.operations.size);
 
@@ -6864,13 +8140,13 @@ var _initialiseProps$4 = function _initialiseProps() {
   });
 };
 
-var _iteratorNormalCompletion = true;
-var _didIteratorError = false;
-var _iteratorError = undefined;
+var _iteratorNormalCompletion$1 = true;
+var _didIteratorError$1 = false;
+var _iteratorError$1 = undefined;
 
 try {
-  for (var _iterator = EVENT_HANDLERS[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
-    var prop = _step.value;
+  for (var _iterator$1 = EVENT_HANDLERS[Symbol.iterator](), _step$1; !(_iteratorNormalCompletion$1 = (_step$1 = _iterator$1.next()).done); _iteratorNormalCompletion$1 = true) {
+    var prop = _step$1.value;
 
     Editor.propTypes[prop] = propTypes.func;
   }
@@ -6881,21 +8157,21 @@ try {
    * @type {Component}
    */
 } catch (err) {
-  _didIteratorError = true;
-  _iteratorError = err;
+  _didIteratorError$1 = true;
+  _iteratorError$1 = err;
 } finally {
   try {
-    if (!_iteratorNormalCompletion && _iterator.return) {
-      _iterator.return();
+    if (!_iteratorNormalCompletion$1 && _iterator$1.return) {
+      _iterator$1.return();
     }
   } finally {
-    if (_didIteratorError) {
-      throw _iteratorError;
+    if (_didIteratorError$1) {
+      throw _iteratorError$1;
     }
   }
 }
 
-var index$1 = {
+var index$4 = {
   Editor: Editor,
   cloneFragment: cloneFragment,
   findDOMNode: findDOMNode,
@@ -6920,7 +8196,7 @@ exports.getEventTransfer = getEventTransfer;
 exports.setEventTransfer = setEventTransfer;
 exports.AfterPlugin = AfterPlugin;
 exports.BeforePlugin = BeforePlugin;
-exports.default = index$1;
+exports.default = index$4;
 
 Object.defineProperty(exports, '__esModule', { value: true });
 
