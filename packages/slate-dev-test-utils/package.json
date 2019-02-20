@@ -10,7 +10,7 @@
     "lib/"
   ],
   "peerDependencies": {
-    "slate": ">=0.35.0"
+    "slate": "*"
   },
   "scripts": {
     "clean": "rm -rf ./dist ./lib ./node_modules"

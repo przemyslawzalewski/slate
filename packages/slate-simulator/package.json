@@ -13,7 +13,7 @@
     "lib/"
   ],
   "peerDependencies": {
-    "slate": ">=0.32.0"
+    "slate": "*"
   },
   "devDependencies": {
     "slate": "^0.41.0"

@@ -29,10 +29,10 @@
     "slate-prop-types": "^0.4.64"
   },
   "peerDependencies": {
-    "immutable": ">=3.8.1",
-    "react": ">=0.14.0",
-    "react-dom": ">=0.14.0",
-    "slate": ">=0.37.0"
+    "immutable": "*",
+    "react": "*",
+    "react-dom": "*",
+    "slate": "*"
   },
   "devDependencies": {
     "immutable": "^3.8.1",
